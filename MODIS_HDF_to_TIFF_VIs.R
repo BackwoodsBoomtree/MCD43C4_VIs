@@ -1,30 +1,23 @@
-#### 
-#
-# Created May 4th, 2021
-# 
-# Most modis data is version 4 HDF, which does not have native support in ncdf4 and other pacakges.
-# ncdf4 could be built and deployed, but I had difficulty with this and found it easier to just
-# convert HDF layers I need to tiff.
-# 
-
 
 library(gdalUtils)
 library(tools)
 library(raster)
 library(ncdf4)
 
-hdf_input        <- "C:/Users/rusty/Downloads/MCD43/hdf"
-tif_output       <- "C:/Users/rusty/Downloads/MCD43/tif"
-vi_output        <- "C:/Users/rusty/Downloads/MCD43/tif/VIs"
-eight_day_output <- "C:/Users/rusty/Downloads/MCD43/tif/8_day/VIs"
-nc_output        <- "C:/Users/rusty/Downloads/MCD43/nc/0.05"
-agg_output       <- "C:/Users/rusty/Downloads/MCD43/nc/1-degree"
-agg_tiff_output  <- "C:/Users/rusty/Downloads/MCD43/tif/0.50/8_day/VIs"
+hdf_input        <- "/net/fluo/data2/data/MODIS-MCD43C4.006/original"
+tif_output       <- "/net/fluo/data2/data/MODIS-MCD43C4.006/reprocessed/tif"
+vi_output        <- "/net/fluo/data2/data/MODIS-MCD43C4.006/reprocessed/tif/VIs"
+temp_agg_output  <- "/net/fluo/data2/data/MODIS-MCD43C4.006/reprocessed/tif/Monthly/VIs"
+nc_output        <- "/net/fluo/data2/data/MODIS-MCD43C4.006/reprocessed/nc"
+agg_tiff_output  <- "/net/fluo/data2/data/MODIS-MCD43C4.006/reprocessed/tif/1-deg/Monthly/VIs"
 band_list        <- c(1, 2, 3, 6)
 vi_list          <- c("NDVI", "EVI", "NIRv", "LSWI")
-tiff_res         <- 0.50
+land_mask        <- "/net/fluo/data2/data/MODIS-MCD43C4.006/reprocessed/land_mask/Land_Ocean_0.05deg_Clark1866.tif"
+tiff_res         <- 1.0
+years            <- c(2014:2018)
 
-convert_hdf <- function (in_dir, out_dir, bands) {
+
+convert_hdf    <- function (in_dir, out_dir, bands) {
   
   file_list <- list.files(in_dir, full.names = TRUE, pattern = "*.hdf$", recursive = TRUE)
   
@@ -34,7 +27,7 @@ convert_hdf <- function (in_dir, out_dir, bands) {
       dir.create(paste0(out_dir, "/b", b), recursive = TRUE)
     }
   }
-
+  
   for (f in 1:length(file_list)) {
     
     sds <- get_subdatasets(file_list[f]) # Get subdatasets
@@ -47,8 +40,7 @@ convert_hdf <- function (in_dir, out_dir, bands) {
     }
   }
 }
-
-calc_VIs <- function (in_dir, out_dir, vis) {
+calc_VIs       <- function (in_dir, out_dir, vis) {
   
   # Create subdirs for each VI if !exist
   for (vi in vis) {
@@ -163,9 +155,8 @@ calc_VIs <- function (in_dir, out_dir, vis) {
   #   }
   # }
 }
-
-# If there are multiple years, before running this function move the VI tiffs into folders by year.
-to_8day <- function (in_dir, out_dir, vis) {
+# If there are multiple years, before running the 8-day or month function move the VI tiffs into folders by year.
+to_8day        <- function (in_dir, out_dir, vis) {
   
   # Empty raster for template
   template_raster <- raster(xmn = -180, xmx = 180, ymn = -90, ymx = 90, ncols = 7200, nrows = 3600, crs = "+proj=longlat +datum=WGS84")
@@ -174,7 +165,7 @@ to_8day <- function (in_dir, out_dir, vis) {
     
     sub_dir_list <- list.dirs(paste0(in_dir, "/", vis[i]), recursive = FALSE)
     print(paste0("Starting ", vis[i], ". Input dir is ", in_dir, "/", vis[i]))
-   
+    
     for (s in 1:length(sub_dir_list)) {
       
       temp_output_dir <- paste0(out_dir, "/", vis[i], "/", basename(sub_dir_list[s]))
@@ -189,7 +180,7 @@ to_8day <- function (in_dir, out_dir, vis) {
       for (h in seq(1, length(sub_dir_files), 8)){
         
         print(paste0("Running 8-day mean starting with DOY ", h))
-      
+        
         if (h != 361) { 
           
           vi_stack <- stack(sub_dir_files[h:h + 7])
@@ -244,17 +235,26 @@ to_8day <- function (in_dir, out_dir, vis) {
     }
   }
 }
-
-nc_by_vi_year <- function (in_dir, out_dir, vis) {
+to_month       <- function (in_dir, out_dir, vis, mask) {
   
-  for (i in 1:3) {
+  # Empty raster for template
+  template_raster <- raster(xmn = -180, xmx = 180, ymn = -90, ymx = 90, ncols = 7200, nrows = 3600, crs = "+proj=longlat +datum=WGS84")
+  land_mask       <- raster(mask)
+  
+  # Set extent of mask
+  ext <- extent(-180, 180, -90, 90)
+  extent(land_mask) <- ext
+  land_mask <- setExtent(land_mask, ext)
+  
+  # Reproject MCD rasters and mask
+  land_mask <- projectRaster(land_mask, template_raster)
+  
+  for (i in 1:length(vis)) {
     
     sub_dir_list <- list.dirs(paste0(in_dir, "/", vis[i]), recursive = FALSE)
+    print(paste0("Starting ", vis[i], ". Input dir is ", in_dir, "/", vis[i]))
     
     for (s in 1:length(sub_dir_list)) {
-      
-      print(paste0("Starting to put ", vis[i], " files into .nc from the year ", basename(sub_dir_list[s])))
-      sub_dir_files <- list.files(sub_dir_list[s], full.names = TRUE, pattern = "*.tif$")
       
       temp_output_dir <- paste0(out_dir, "/", vis[i], "/", basename(sub_dir_list[s]))
       print(paste0("Output dir is: ", temp_output_dir))
@@ -263,31 +263,70 @@ nc_by_vi_year <- function (in_dir, out_dir, vis) {
         dir.create(temp_output_dir, recursive = TRUE)
       }
       
-      vi_stack <- stack(sub_dir_files)
+      sub_dir_files <- list.files(sub_dir_list[s], full.names = TRUE, pattern = "*.tif$")
       
-      # For some reason, some large values in a few pixels for EVI; kick them out
-      if (vis[i] == "EVI") {
-        # old way
-        # m_pos <- matrix(c(1, Inf, NA), ncol = 3, byrow = T)
-        # vi_stack <- reclassify(vi_stack, m_pos)
+      doy <- 1
+      
+      for (m in 1:12) {
         
-        vi_stack <- clamp(vi_stack, lower = 0, upper = 1, useValues = FALSE) # F sets values outside threshold to NA
-        print("Got rid of values > 1; VI is not LSWI")
+        if (m == 1 || m == 3 || m == 5 || m == 7 || m == 8 || m == 10 || m == 12) {
+          
+          print(paste0("Month is ", m, " and the files are for DOYs ", doy, " to ", doy + 30))
+          vi_stack <- stack(sub_dir_files[doy:doy + 30])
+          doy <- doy + 31
+          
+        } else if (m == 4 || m == 6 || m == 9 || m == 11) {
+          
+          print(paste0("Month is ", m, " and the files are for DOYs ", doy, " to ", doy + 29))
+          vi_stack <- stack(sub_dir_files[doy:doy + 29])
+          doy <- doy + 30
+          
+        } else if (m == 2) {
+          
+          if (length(sub_dir_files) == 365) {
+            
+            print(paste0("Month is ", m, " and the files are for DOYs ", doy, " to ", doy + 27))
+            print("Not a leap year! Feb has 28 days.")
+            vi_stack <- stack(sub_dir_files[doy:doy + 27])
+            doy <- doy + 28
+            
+          } else if (length(sub_dir_files) == 366) {
+            
+            print(paste0("Month is ", m, " and the files are for DOYs ", doy, " to ", doy + 28))
+            print("Hello leap year! Feb has 29 days.")
+            vi_stack <- stack(sub_dir_files[doy:doy + 28])
+            doy <- doy + 29
+          }
+        }
+        
+        # Set extent of MCD rasters and mask
+        extent(vi_stack)  <- ext
+        vi_stack  <- setExtent(vi_stack, ext)
+        
+        # Reproject MCD rasters and mask
+        vi_stack  <- projectRaster(vi_stack, template_raster)
+        
+        # Get rid of negative values (LSWI can be negative)
+        if (vis[i] != "LSWI") {
+          # Valid values are >= 0, so set all negative to NA (right = F will not set 0 to NA)
+          mat <- matrix(c(-Inf, 0, NA), ncol = 3, byrow = T)
+          vi_stack <- reclassify(vi_stack, mat, right = F)
+          print("Got rid of negative values; VI is not LSWI")
+        } else {
+          print("Kept all values; VI is LSWI")
+        }
+        
+        vi_out <- mean(vi_stack, na.rm = T) # Monthly mean
+        vi_out <- mask(vi_out, land_mask, maskvalue = 0) # Mask by land
+        
+        month_num <- sprintf("%02.0f", m)
+        out_name  <- substr(basename(sub_dir_files[1]), 1, 13) # Get first 13 characters of filename
+        print(paste0("Saving file to: ", temp_output_dir, "/", out_name, month_num, "_", vis[i], "_Monthly.tif"))
+        writeRaster(vi_out, paste0(temp_output_dir, "/", out_name, month_num, "_", vis[i], "_Monthly.tif"), overwrite = TRUE, NAflag = -9999)
       }
-      
-      vi_stack <- round(vi_stack, digits = 4)
-      
-      out_name <- file_path_sans_ext(basename(sub_dir_files[1]))
-      out_name <- substr(out_name, 1, nchar(out_name) - 18)
-      out_name <- paste0(out_name, ".006_", vis[i], "_8-day.tif")
-      writeRaster(vi_stack, paste0(temp_output_dir, "/", out_name), overwrite = TRUE, format = "CDF", NAflag = -9999, datatype = 'FLT4S', compression = 4, varname = vis[i], 
-                  longname = paste0("8-day MCD43C4 ", vis[i]), xname = "Longitude",  yname = "Latitude", zname = "Time (DOY)", zunit = "8-days")
-      print(paste0("Saved file to: ", temp_output_dir, "/", out_name))
     }
   }
 }
-
-# This function aggregates the nc files
 aggregate_0.20 <- function (in_dir, out_dir) {
   
   if (!dir.exists(out_dir)) { # Create output dirs for each year
@@ -306,13 +345,11 @@ aggregate_0.20 <- function (in_dir, out_dir) {
     
     out_var <- file_path_sans_ext(basename(file_list[f]))
     out_var <- substr(out_var, 19, nchar(out_var) - 6)
-
+    
     writeRaster(vi_stack, paste0(out_dir, "/", out_name), overwrite = TRUE, format = "CDF", NAflag = -9999, datatype = 'FLT4S', compression = 4, varname = out_var, 
                 longname = paste0("8-day MCD43C4 ", out_var), xname = "Longitude",  yname = "Latitude", zname = "Time (DOY)", zunit = "8-days")
   }
 }
-
-# This function aggregates the tiff files
 aggregate_tiff <- function (in_dir, out_dir, res, vis) {
   
   for (i in 1:length(vis)) {
@@ -334,7 +371,7 @@ aggregate_tiff <- function (in_dir, out_dir, res, vis) {
       for (h in 1:length(sub_dir_files)){
         
         out_name <- file_path_sans_ext(basename(sub_dir_files[h]))
-        out_name <- paste0(out_name, "_0.50-deg.tif")
+        out_name <- paste0(out_name, "_", res, "-deg.tif")
         
         vi <- raster(sub_dir_files[h])
         vi <- aggregate(vi, fact = (res / 0.05), fun = mean, na.rm = TRUE)
@@ -346,15 +383,57 @@ aggregate_tiff <- function (in_dir, out_dir, res, vis) {
     }
   }
 }
+nc_by_vi_year  <- function (in_dir, out_dir, res, vis) {
+  
+  for (i in 1:length(vis)) {
+    
+    sub_dir_list <- list.dirs(paste0(in_dir, "/", vis[i]), recursive = FALSE)
+    
+    for (s in 1:length(sub_dir_list)) {
+      
+      print(paste0("Starting to put ", vis[i], " files into .nc from the year ", basename(sub_dir_list[s])))
+      sub_dir_files <- list.files(sub_dir_list[s], full.names = TRUE, pattern = "*.tif$")
+      
+      temp_output_dir <- paste0(out_dir, "/", res, "/", vis[i])
+      print(paste0("Output dir is: ", temp_output_dir))
+      
+      if (!dir.exists(temp_output_dir)) { # Create output dirs for each year
+        dir.create(temp_output_dir, recursive = TRUE)
+      }
+      
+      vi_stack <- stack(sub_dir_files)
+      
+      # For some reason, some large values in a few pixels for EVI; kick them out
+      if (vis[i] != "LSWI") {
+        # old way
+        # m_pos <- matrix(c(1, Inf, NA), ncol = 3, byrow = T)
+        # vi_stack <- reclassify(vi_stack, m_pos)
+        
+        vi_stack <- clamp(vi_stack, lower = 0, upper = 1, useValues = FALSE) # F sets values outside threshold to NA
+        print("Got rid of values > 1; VI is not LSWI")
+      }
+      
+      vi_stack <- round(vi_stack, digits = 4)
+      
+      out_name <- substr(basename(sub_dir_files[1]), 1, 13)
+      out_name <- paste0(out_name, ".006_", vis[i], "_Monthly.nc")
+      writeRaster(vi_stack, paste0(temp_output_dir, "/", out_name), overwrite = TRUE, format = "CDF", NAflag = -9999, datatype = 'FLT4S', compression = 4, varname = vis[i], 
+                  longname = paste0("Monthly MCD43C4 v006 ", vis[i]), xname = "Longitude",  yname = "Latitude", zname = "Time", zunit = "Month")
+      print(paste0("Saved file to: ", temp_output_dir, "/", out_name))
+    }
+  }
+}
 
 # convert_hdf(hdf_input, tif_output, band_list)
 
 # calc_VIs(tif_output, vi_output, vi_list)
 
-# to_8day(vi_output, eight_day_output, vi_list)
+# to_8day(vi_output, temp_agg_output, vi_list)
 
-# nc_by_vi_year(eight_day_output, nc_output, vi_list)
+# to_month(vi_output, temp_agg_output, vi_list, land_mask)
 
 # aggregate_0.20(nc_output, agg_output)
 
-aggregate_tiff(eight_day_output, agg_tiff_output, tiff_res, vi_list)
+# aggregate_tiff(temp_agg_output, agg_tiff_output, tiff_res, vi_list)
+
+nc_by_vi_year(agg_tiff_output, nc_output, tiff_res, vi_list)
