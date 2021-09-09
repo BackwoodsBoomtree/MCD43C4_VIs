@@ -3,23 +3,26 @@ library(gdalUtils)
 library(tools)
 library(raster)
 library(ncdf4)
+library(filesstrings)
 
-hdf_input        <- "/net/fluo/data2/data/MODIS-MCD43C4.006/original"
-tif_output       <- "/net/fluo/data2/data/MODIS-MCD43C4.006/reprocessed/tif"
-vi_output        <- "/net/fluo/data2/data/MODIS-MCD43C4.006/reprocessed/tif/VIs"
-temp_agg_output  <- "/net/fluo/data2/data/MODIS-MCD43C4.006/reprocessed/tif/Monthly/VIs"
-nc_output        <- "/net/fluo/data2/data/MODIS-MCD43C4.006/reprocessed/nc"
-agg_tiff_output  <- "/net/fluo/data2/data/MODIS-MCD43C4.006/reprocessed/tif/1-deg/Monthly/VIs"
+hdf_input        <- "C:/Russell/Temp/MCD43C4/original"
+tif_output       <- "G:/Temp/MCD43C4/reprocessed/tif"
+vi_output        <- "G:/Temp/MCD43C4/reprocessed/tif/VIs"
+temp_agg_output  <- "G:/Temp/MCD43C4/reprocessed/tif/Monthly/VIs"
+nc_output        <- "G:/Temp/MCD43C4/reprocessed/nc"
+agg_tiff_output  <- "G:/Temp/MCD43C4/reprocessed/tif/1-deg/Monthly/VIs"
 band_list        <- c(1, 2, 3, 6)
 vi_list          <- c("NDVI", "EVI", "NIRv", "LSWI")
-land_mask        <- "/net/fluo/data2/data/MODIS-MCD43C4.006/reprocessed/land_mask/Land_Ocean_0.05deg_Clark1866.tif"
+land_mask        <- "C:/Russell/Git/land_mask/Land_Ocean_0.05deg_Clark1866.tif"
 tiff_res         <- 1.0
-years            <- c(2014:2018)
+year_list        <- c(2019:2021)
 
 
 convert_hdf    <- function (in_dir, out_dir, bands) {
   
   file_list <- list.files(in_dir, full.names = TRUE, pattern = "*.hdf$", recursive = TRUE)
+  
+  print(paste0("I am converting ", length(file_list), " HDF files to TIFF for ", length(band_list), " bands."))
   
   # Create subdirs for each band if !exist
   for (b in band_list) {
@@ -29,6 +32,8 @@ convert_hdf    <- function (in_dir, out_dir, bands) {
   }
   
   for (f in 1:length(file_list)) {
+    
+    print(paste0("I am converting ", file_list[f], "."))
     
     sds <- get_subdatasets(file_list[f]) # Get subdatasets
     file_name <- file_path_sans_ext(basename(file_list[f]))
@@ -56,6 +61,9 @@ calc_VIs       <- function (in_dir, out_dir, vis) {
     b6_files <- list.files(paste0(in_dir, "/b6"), full.names = TRUE, pattern = "*.tif$")
     
     for (f in 1:length(b1_files)) {
+      
+      print(paste0("I am working on file number ", f, " of ", length(b1_files), " files."))
+      
       b1   <- raster(b1_files[f])
       b2   <- raster(b2_files[f])
       b3   <- raster(b3_files[f])
@@ -155,7 +163,43 @@ calc_VIs       <- function (in_dir, out_dir, vis) {
   #   }
   # }
 }
-# If there are multiple years, before running the 8-day or month function move the VI tiffs into folders by year.
+annual_folders <- function (in_dir, vis, years) {
+  
+  for (vi in 1:length(vis)) {
+    
+    vi_file_list <- list.files(paste0(in_dir, "/", vis[vi]), full.names = TRUE, pattern = "*.tif$", recursive = TRUE)
+
+    for (y in 1:length(years)) {
+      
+      year_dir <- paste0(in_dir, "/", vis[vi], "/", years[y])
+
+      if (!dir.exists(year_dir)) { # Create output dirs for each year
+        dir.create(year_dir, recursive = TRUE)
+      }
+      
+      year_file_list <- vi_file_list[grep(paste0("A", years[y]), vi_file_list)] # Year is preceded by A in the file names
+      
+      for (f in 1:length(year_file_list)) {
+        file.move(year_file_list[f], year_dir)
+      }
+    }
+  }
+}
+check_leap     <- function (year) {
+    if((year %% 4) == 0) {
+    if((year %% 100) == 0) {
+      if((year %% 400) == 0) {
+        return(TRUE)
+      } else {
+        return(FALSE)
+      }
+    } else {
+      return(TRUE)
+    }
+  } else {
+    return(FALSE)
+  }
+}
 to_8day        <- function (in_dir, out_dir, vis) {
   
   # Empty raster for template
@@ -256,7 +300,9 @@ to_month       <- function (in_dir, out_dir, vis, mask) {
     
     for (s in 1:length(sub_dir_list)) {
       
-      temp_output_dir <- paste0(out_dir, "/", vis[i], "/", basename(sub_dir_list[s]))
+      year <- as.numeric(basename(sub_dir_list[s]))
+      
+      temp_output_dir <- paste0(out_dir, "/", vis[i], "/", year)
       print(paste0("Output dir is: ", temp_output_dir))
       
       if (!dir.exists(temp_output_dir)) { # Create output dirs for each year
@@ -264,6 +310,10 @@ to_month       <- function (in_dir, out_dir, vis, mask) {
       }
       
       sub_dir_files <- list.files(sub_dir_list[s], full.names = TRUE, pattern = "*.tif$")
+
+      leap <- check_leap(year)
+      
+      print(paste0("Year ", year, " is a leap year: ", leap))
       
       doy <- 1
       
@@ -271,31 +321,75 @@ to_month       <- function (in_dir, out_dir, vis, mask) {
         
         if (m == 1 || m == 3 || m == 5 || m == 7 || m == 8 || m == 10 || m == 12) {
           
-          print(paste0("Month is ", m, " and the files are for DOYs ", doy, " to ", doy + 30))
-          vi_stack <- stack(sub_dir_files[doy:doy + 30])
-          doy <- doy + 31
+          month_file_list <- sub_dir_files[doy : (doy + 30)]
+          month_file_list <- month_file_list[!is.na(month_file_list)]
+
+          if (length(month_file_list) == 31) {
+            
+            print(paste0("Month is ", m, " and the files are for DOYs ", doy, " to ", doy + 30))
+            vi_stack <- stack(month_file_list)
+            doy <- doy + 31
+            
+          } else {
+            
+            print(paste0("Skipping month ", m, " for year ", year, " due to insufficient number of files, where n = ", length(month_file_list)))
+            
+          }
           
         } else if (m == 4 || m == 6 || m == 9 || m == 11) {
           
-          print(paste0("Month is ", m, " and the files are for DOYs ", doy, " to ", doy + 29))
-          vi_stack <- stack(sub_dir_files[doy:doy + 29])
-          doy <- doy + 30
+          month_file_list <- sub_dir_files[doy : (doy + 29)]
+          month_file_list <- month_file_list[!is.na(month_file_list)]
+          
+          if (length(month_file_list) == 30) {
+          
+            print(paste0("Month is ", m, " and the files are for DOYs ", doy, " to ", doy + 29))
+            vi_stack <- stack(month_file_list)
+            doy <- doy + 30
+            
+          } else {
+            
+            print(paste0("Skipping month ", m, " for year ", year, " due to insufficient number of files, where n = ", length(month_file_list)))
+            
+          }
           
         } else if (m == 2) {
           
-          if (length(sub_dir_files) == 365) {
+          if (leap == FALSE) {
             
-            print(paste0("Month is ", m, " and the files are for DOYs ", doy, " to ", doy + 27))
-            print("Not a leap year! Feb has 28 days.")
-            vi_stack <- stack(sub_dir_files[doy:doy + 27])
-            doy <- doy + 28
+            month_file_list <- sub_dir_files[doy : (doy + 27)]
+            month_file_list <- month_file_list[!is.na(month_file_list)]
             
-          } else if (length(sub_dir_files) == 366) {
+            if (length(month_file_list) == 28) {
             
-            print(paste0("Month is ", m, " and the files are for DOYs ", doy, " to ", doy + 28))
-            print("Hello leap year! Feb has 29 days.")
-            vi_stack <- stack(sub_dir_files[doy:doy + 28])
-            doy <- doy + 29
+              print(paste0("Month is ", m, " and the files are for DOYs ", doy, " to ", doy + 27))
+              print("Not a leap year! Feb has 28 days.")
+              vi_stack <- stack(month_file_list)
+              doy <- doy + 28
+              
+            } else {
+              
+              print(paste0("Skipping month ", m, " for year ", year, " due to insufficient number of files, where n = ", length(month_file_list)))
+              
+            }
+            
+          } else if (leap == TRUE) {
+            
+            month_file_list <- sub_dir_files[doy : (doy + 28)]
+            month_file_list <- month_file_list[!is.na(month_file_list)]
+            
+            if (length(month_file_list) == 29) {
+            
+              print(paste0("Month is ", m, " and the files are for DOYs ", doy, " to ", doy + 28))
+              print("Hello leap year! Feb has 29 days.")
+              vi_stack <- stack(month_file_list)
+              doy <- doy + 29
+              
+            } else {
+              
+              print(paste0("Skipping month ", m, " for year ", year, " due to insufficient number of files, where n = ", length(month_file_list)))
+              
+            }
           }
         }
         
@@ -428,12 +522,14 @@ nc_by_vi_year  <- function (in_dir, out_dir, res, vis) {
 
 # calc_VIs(tif_output, vi_output, vi_list)
 
+# annual_folders(vi_output, vi_list, year_list)
+
 # to_8day(vi_output, temp_agg_output, vi_list)
 
-# to_month(vi_output, temp_agg_output, vi_list, land_mask)
+to_month(vi_output, temp_agg_output, vi_list, land_mask)
 
 # aggregate_0.20(nc_output, agg_output)
 
 # aggregate_tiff(temp_agg_output, agg_tiff_output, tiff_res, vi_list)
 
-nc_by_vi_year(agg_tiff_output, nc_output, tiff_res, vi_list)
+# nc_by_vi_year(agg_tiff_output, nc_output, tiff_res, vi_list)
