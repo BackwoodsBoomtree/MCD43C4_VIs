@@ -2,13 +2,12 @@
 
 Calculate Vegetation Indices from MODIS data
 
-This code can achieve the following:
+These codes can achieve the following:
 
-* Convert MODIS HDF data to TIFF files
-* Calculate Vegetation Indices NDVI, EVI, NIRv, and LSWI
-* Aggregate temporally to 8-day or monthly time series
-* Aggregate spatially to user defined resolution
-* Package the resultant data into NC files for storage and sharing
+* Convert MODIS HDF data to TIFF files and calculate Vegetation Indices NDVI, EVI, NIRv, and LSWI (MODIS_HDF_to_TIFF_VIs.R)
+* Reorganize output files by year (Annual_Folders.R)
+* Aggregate temporally to 8-day or monthly time series and to user defined spatial resolution (Aggregate_Daily_VIs.R)
+* Package the resultant data into NC files for storage and sharing (nc_by_year.R)
 
 ## Description
 
@@ -32,5 +31,5 @@ Russell Doughty, PhD - russell.doughty@ou.edu
 
 ## Potential Future Improvements
 
-* Add land mask to 8-day function.
+* None
 
