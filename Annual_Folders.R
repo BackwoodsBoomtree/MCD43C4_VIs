@@ -1,5 +1,9 @@
 
-year_list          <- c(2019:2021)
+library(filesstrings)
+
+vi_original_output <- "/mnt/g/MCD43C4/tif/Daily/0.05"
+vi_list            <- c("EVI")
+year_list          <- c(2018:2021)
 
 annual_folders <- function (in_dir, vis, years) {
 
@@ -23,3 +27,5 @@ annual_folders <- function (in_dir, vis, years) {
     }
   }
 }
+
+annual_folders(vi_original_output, vi_list, year_list)

@@ -3,7 +3,6 @@ library(gdalUtils)
 library(tools)
 library(raster)
 library(ncdf4)
-library(filesstrings)
 library(parallel)
 # library(rslurm)
 
