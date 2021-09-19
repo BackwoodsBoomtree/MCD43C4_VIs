@@ -8,7 +8,7 @@ library(parallel)
 #### LOCAL ####
 
 hdf_input          <- "/mnt/c/Russell/Temp/MCD43C4/original"
-tmp_output         <- "/mnt/g/Temp/MCD43C4/tif"
+tmp_output         <- "/mnt/c/tmp/MCD43C4"
 vi_original_output <- "/mnt/g/MCD43C4/tif/Daily/0.05"
 band_list          <- c(1, 2, 3, 6) # Don't change (RED, NIR, BLUE, SWIR)
 vi_list            <- c("EVI", "NDVI", "NIRv", "LSWI")
@@ -32,19 +32,19 @@ hdf_to_vis    <- function (filename, tmp_dir, vi_dir, bands, vis, qc, snow, mask
   # Build template raster and extent for projecting resultant rasters
   template_raster <- raster(xmn = -180, xmx = 180, ymn = -90, ymx = 90, ncols = 7200, nrows = 3600, crs = "+proj=longlat +datum=WGS84")
   
+  # tmp band and mask directories
+  tmp_band_dir <- paste0(tmp_dir, "/b")
+  tmp_mask_dir <- paste0(tmp_dir, "/mask")
+  
   # Create temp dirs for bands, QC mask, snow mask, and VIs
   for (band in bands) {
-    if (!dir.exists(paste0(tmp_dir, "/b", band))) {
-      dir.create(paste0(tmp_dir, "/b", band), recursive = TRUE)
+    if (!dir.exists(paste0(tmp_band_dir, band))) {
+      dir.create(paste0(tmp_band_dir, band), recursive = TRUE)
     }
   }
   
-  if (!dir.exists(paste0(tmp_dir, "/qc_mask"))) {
-    dir.create(paste0(tmp_dir, "/qc_mask"), recursive = TRUE)
-  }
-  
-  if (!dir.exists(paste0(tmp_dir, "/snow_mask"))) {
-    dir.create(paste0(tmp_dir, "/snow_mask"), recursive = TRUE)
+  if (!dir.exists(paste0(tmp_dir, "/mask"))) {
+    dir.create(paste0(tmp_dir, "/mask"), recursive = TRUE)
   }
   
   for (vi in vis) {
@@ -65,7 +65,7 @@ hdf_to_vis    <- function (filename, tmp_dir, vi_dir, bands, vis, qc, snow, mask
   
   for (band in bands) {
     
-    band_filename <- paste0(tmp_dir, "/b", band, "/", file_basename, "_b", band, ".tif")
+    band_filename <- paste0(tmp_band_dir, band, "/", file_basename, "_b", band, ".tif")
     
     # Extract raster for given band
     gdal_translate(sds[band], band_filename)
@@ -83,8 +83,8 @@ hdf_to_vis    <- function (filename, tmp_dir, vi_dir, bands, vis, qc, snow, mask
 
   #### MASKS ####
   
-  qc_filename   <- paste0(tmp_dir, "/qc_mask/", file_basename, "_qc.tif")
-  snow_filename <- paste0(tmp_dir, "/snow_mask/", file_basename, "_snow.tif")
+  qc_filename   <- paste0(tmp_mask_dir, "/", file_basename, "_qc.tif")
+  snow_filename <- paste0(tmp_mask_dir, "/", file_basename, "_snow.tif")
   
   # Extract raster for QC and Snow layers
   gdal_translate(sds[8], qc_filename)
@@ -196,7 +196,7 @@ hdf_to_vis    <- function (filename, tmp_dir, vi_dir, bands, vis, qc, snow, mask
   tmp_file_list <- tmp_file_list[grepl(paste0("\\<", pid, "\\>"), substr(basename(tmp_file_list), 25, nchar(basename(tmp_file_list)) -10))]
   
   # Remove bands, masks, raster, and R tmp files files
-  unlink(c(tmp_dir, tmp_file_list, tempfile()), recursive = TRUE)
+  unlink(c(list_band_filenames, qc_filename, snow_filename, tmp_file_list, tempfile()))
 
   print(paste0("Done with ", file_basename, ". Time difference in minutes: ", round(difftime(Sys.time(), start, units = "mins"), 2)))
 
