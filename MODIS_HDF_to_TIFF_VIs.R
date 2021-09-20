@@ -7,13 +7,14 @@ terraOptions(memfrac = 0.8) # Fraction of memory to allow terra
 
 #### Input variables ####
 
+tmpdir             <- "/mnt/c/Rwork"
 hdf_input          <- "/mnt/c/Russell/Temp/MCD43C4/original"
 vi_dir             <- "/mnt/g/MCD43C4/tif/Daily/0.05"
 vi_list            <- c("EVI", "NDVI", "NIRv", "LSWI")
 qc_filter          <- c(4, 5) # Flags to exclude (0 = best, 5 = worst for MDC43C4)
 snow_filter        <- 0 # in percent (0 is no snow and excludes all pixels with any snow; 100 is no filter) 
 land_mask          <- "/mnt/c/Russell/Git/land_mask/Land_Ocean_0.05deg_Clark1866.tif"
-tmpdir             <- "/mnt/c/Rwork"
+
 
 #### Functions ####
 
@@ -152,7 +153,7 @@ for (vi in vi_list) {
 }
 
 hdf_list <- list.files(hdf_input, pattern = "*.hdf$", full.names = TRUE, recursive = TRUE)
-mclapply(hdf_list, save_vis, mc.preschedule = FALSE, mc.cores = 10, vi_dir = vi_dir, vi_list = vi_list)
+mclapply(hdf_list, save_vis, mc.preschedule = FALSE, mc.cores = 5, vi_dir = vi_dir, vi_list = vi_list)
 
 
 ######## FOR SLURM ##########
