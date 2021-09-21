@@ -14,6 +14,10 @@ These codes can achieve the following:
 
 This code is originally designed to work with [MCD43C4 v006](https://lpdaac.usgs.gov/products/mcd43c4v006/) surface reflectance data, which has a daily temporal resolution. However, it can be adapted and changed slightly to work with other MODIS products. The code currently supports the calculation of EVI, NDVI, NIRv, and LSWI.
 
+## Workflow
+
+The workflow and codes are listed above in order. It might be necessary to correct the extent on some output files after running MODIS_HDF_to_TIFF_VIs.R. For some reason, the extent on about 10% of the files were not corrected during the processing with this code - which may have had something to do with parallel processing. I have reordered the code and this should not happen again, but if it does run fix_extent.R to loop through the files and correct the extent.
+
 ## Masks
 
 User can define a snow and qc threshold to use when extracting the MCD43C4 data. The code also employs a land cover mask from MCD12 to ensure only land pixels are included in the output. Fork the code to change filters and techniques when processing other datasets, as needed.
@@ -22,11 +26,13 @@ A zero tolerance for snow cover was selected per Walther et. al. (2016). We also
 
 ## Projection
 
-Output data is projected into WGS84 and also the extent is set to -180, 180, 90, and 90. 
+Output data is projected into WGS84 and also the extent is set to -180, 180, 90, and 90.
 
-## Workflow
+## Aggregation
 
-The workflow and codes are listed above in order. It might be necessary to correct the extent on some output files after running MODIS_HDF_to_TIFF_VIs.R. For some reason, the extent on about 10% of the files were not corrected during the processing with this code - which may have had something to do with parallel processing. I have reordered the code and this should not happen again, but if it does run fix_extent.R to loop through the files and correct the extent.
+The current version supports temporal aggregation to 8-day and monthly resolution. If there are not enough days to fill the entire period, then it is skipped automatically. In this way, the code can be run on partial years or be used in a more operational format - we do not need an entire year's worth of data to run the code.
+
+Spatial aggregation can be done to any user defined spatial resolution.
 
 ## Notes
 
