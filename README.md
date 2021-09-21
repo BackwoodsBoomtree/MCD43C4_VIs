@@ -36,9 +36,10 @@ Spatial aggregation can be done to any user defined spatial resolution.
 
 ## Notes
 
-Code has been updated to use the terra package, which is a replacement for the raster package. Terra has the ability to extract HDF4 subdatasets directly into memory using sds(), whereas the old workflow was to first write them out to tif using gdal_translate(). Speed is greatly improved.
+* The "Error in (function (x)  : attempt to apply non-function" message should be safely ignored. See https://github.com/rspatial/terra/issues/30.
 
-The NC file output is basic and not CF compliant, but is sufficient. See my python code for producing CF-compliant NC files.
+* Code has been updated to use the terra package, which is a replacement for the raster package. Terra has the ability to extract HDF4 subdatasets directly into memory using sds(), whereas the old workflow was to first write them out to tif using gdal_translate(). Speed is greatly improved.
+* The NC file output is basic and not CF compliant, but is sufficient. See my python code for producing CF-compliant NC files.
 
 ## Authors
 
