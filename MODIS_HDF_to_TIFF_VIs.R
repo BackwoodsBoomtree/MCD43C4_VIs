@@ -62,7 +62,6 @@ mask_all   <- function(index, data_cube, qc_filter, snow_filter, land_mask) {
 }
 proj_wgs84 <- function(index) {
   
-  ext(index) <- c(-180, 180, -90, 90)
   index      <- terra::project(index, "+proj=longlat +datum=WGS84")
 }
 tmp_create <- function(tmpdir) {
@@ -96,30 +95,34 @@ save_vis   <- function(filename, vi_dir, vi_list) {
   ext(land_mask) <- orig_extent
 
   if ("EVI" %in% vi_list) {
-    index  <- calc_evi(cube[[1]], cube[[2]], cube[[3]])
-    index  <- mask_all(index, cube, qc_filter, snow_filter, land_mask)
-    index  <- proj_wgs84(index)
-    writeRaster(index, paste0(vi_dir, "/EVI/", file_out, ".EVI.tif"), overwrite = TRUE, NAflag = -9999)
+    index      <- calc_evi(cube[[1]], cube[[2]], cube[[3]])
+    index      <- mask_all(index, cube, qc_filter, snow_filter, land_mask)
+    ext(index) <- c(-180, 180, -90, 90)
+    index      <- proj_wgs84(index)
+    writeRaster(index, paste0(vi_dir, "/EVI/", file_out, ".EVI.tif"), overwrite = TRUE, datatype = 'INT4S', NAflag = -9999)
   }
 
   if ("NDVI" %in% vi_list) {
-    index  <- calc_ndvi(cube[[1]], cube[[2]])
-    index  <- mask_all(index, cube, qc_filter, snow_filter, land_mask)
-    index  <- proj_wgs84(index)
+    index      <- calc_ndvi(cube[[1]], cube[[2]])
+    index      <- mask_all(index, cube, qc_filter, snow_filter, land_mask)
+    ext(index) <- c(-180, 180, -90, 90)
+    index      <- proj_wgs84(index)
     writeRaster(index, paste0(vi_dir, "/NDVI/", file_out, ".NDVI.tif"), overwrite = TRUE, datatype = 'INT4S', NAflag = -9999)
   }
   
   if ("NIRv" %in% vi_list) {
-    index  <- calc_nirv(cube[[1]], cube[[2]])
-    index  <- mask_all(index, cube, qc_filter, snow_filter, land_mask)
-    index  <- proj_wgs84(index)
+    index      <- calc_nirv(cube[[1]], cube[[2]])
+    index      <- mask_all(index, cube, qc_filter, snow_filter, land_mask)
+    ext(index) <- c(-180, 180, -90, 90)
+    index      <- proj_wgs84(index)
     writeRaster(index, paste0(vi_dir, "/NIRv/", file_out, ".NIRv.tif"), overwrite = TRUE, datatype = 'INT4S', NAflag = -9999)
   }
 
   if ("LSWI" %in% vi_list) {
-    index  <- calc_lswi(cube[[2]], cube[[6]])
-    index  <- mask_all(index, cube, qc_filter, snow_filter, land_mask)
-    index  <- proj_wgs84(index)
+    index      <- calc_lswi(cube[[2]], cube[[6]])
+    index      <- mask_all(index, cube, qc_filter, snow_filter, land_mask)
+    ext(index) <- c(-180, 180, -90, 90)
+    index      <- proj_wgs84(index)
     writeRaster(index, paste0(vi_dir, "/LSWI/", file_out, ".LSWI.tif"), overwrite = TRUE, datatype = 'INT4S', NAflag = -9999)
   }
   
