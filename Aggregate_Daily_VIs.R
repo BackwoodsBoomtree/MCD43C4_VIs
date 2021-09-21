@@ -1,22 +1,30 @@
 
-library(gdalUtils)
-library(tools)
-library(raster)
-library(ncdf4)
-library(filesstrings)
-library(rslurm)
+library(terra)
+library(parallel)
 
+terraOptions(memfrac = 0.8) # Fraction of memory to allow terra
 
+tmpdir       <- "/mnt/c/Rwork"
+daily_vi_dir <- "/mnt/g/MCD43C4/tif/Daily/0.05"
+output_dir   <- "/mnt/g/MCD43C4/tif/Monthly/0.05"
+vi_list      <- c("EVI", "NDVI", "NIRv", "LSWI")
 
-temp_agg_output    <- "G:/Temp/MCD43C4/reprocessed/tif/Monthly/VIs"
-nc_output          <- "G:/Temp/MCD43C4/reprocessed/nc"
-agg_tiff_output    <- "G:/Temp/MCD43C4/reprocessed/tif/1-deg/Monthly/VIs"
-
-tiff_res           <- 1.0
-year_list          <- c(2019:2021)
-
-
-check_leap     <- function (year) {
+tmp_create <- function(tmpdir) {
+  
+  p_tmp_dir <- paste0(tmpdir, "/", as.character(Sys.getpid())) # Process ID
+  
+  if (!dir.exists(p_tmp_dir)) {
+    dir.create(p_tmp_dir, recursive = TRUE)
+  }
+  
+  terraOptions(tempdir = p_tmp_dir)
+}
+tmp_remove <- function(tmpdir) {
+  
+  p_tmp_dir <- paste0(tmpdir, "/", as.character(Sys.getpid())) # Process ID
+  unlink(p_tmp_dir, recursive = TRUE)
+}
+check_leap <- function (year) {
     if((year %% 4) == 0) {
     if((year %% 100) == 0) {
       if((year %% 400) == 0) {
@@ -31,284 +39,176 @@ check_leap     <- function (year) {
     return(FALSE)
   }
 }
-to_8day        <- function (in_dir, out_dir, vis) {
+to_8day    <- function (vi, in_dir, out_dir, years) {
 
-  # Empty raster for template
-  template_raster <- raster(xmn = -180, xmx = 180, ymn = -90, ymx = 90, ncols = 7200, nrows = 3600, crs = "+proj=longlat +datum=WGS84")
+  sub_dir_list <- list.dirs(paste0(in_dir, "/", vi), recursive = FALSE)
+  print(paste0("Starting ", vi, ". Input dir is ", in_dir, "/", vi))
 
-  for (i in 1:length(vis)) {
+  for (s in 1:length(sub_dir_list)) {
 
-    sub_dir_list <- list.dirs(paste0(in_dir, "/", vis[i]), recursive = FALSE)
-    print(paste0("Starting ", vis[i], ". Input dir is ", in_dir, "/", vis[i]))
+    output_dir <- paste0(out_dir, "/", vi, "/", basename(sub_dir_list[s]))
+    print(paste0("Output dir is: ", output_dir))
 
-    for (s in 1:length(sub_dir_list)) {
+    if (!dir.exists(output_dir)) { # Create output dirs for each year
+      dir.create(output_dir, recursive = TRUE)
+    }
 
-      temp_output_dir <- paste0(out_dir, "/", vis[i], "/", basename(sub_dir_list[s]))
-      print(paste0("Output dir is: ", temp_output_dir))
+    sub_dir_files <- list.files(sub_dir_list[s], full.names = TRUE, pattern = "*.tif$")
 
-      if (!dir.exists(temp_output_dir)) { # Create output dirs for each year
-        dir.create(temp_output_dir, recursive = TRUE)
+    for (h in seq(1, length(sub_dir_files), 8)){
+
+      print(paste0("Running 8-day mean starting with DOY ", h))
+
+      if (h != 361) {
+
+        vi_stack <- rast(sub_dir_files[h:h + 7])
+
+      } else {
+        
+        remaining_files <- length(sub_dir_files) - h
+        vi_stack        <- rast(sub_dir_files[h:h + remaining_files])
       }
-
-      sub_dir_files <- list.files(sub_dir_list[s], full.names = TRUE, pattern = "*.tif$")
-
-      for (h in seq(1, length(sub_dir_files), 8)){
-
-        print(paste0("Running 8-day mean starting with DOY ", h))
-
-        if (h != 361) {
-
-          vi_stack <- stack(sub_dir_files[h:h + 7])
-
-          # Set extent of MCD rasters
-          ext <- extent(-180, 180, -90, 90)
-          extent(vi_stack) <- ext
-          vi_stack <- setExtent(vi_stack, ext)
-
-          # Reproject
-          vi_stack <- projectRaster(vi_stack, template_raster)
-
-          # Get rid of negative values (LSWI can be negative)
-          if (vis[i] != "LSWI") {
-            # Valid values are >= 0, so set all negative to NA (right=F will not set 0 to NA)
-            m <- matrix(c(-Inf, 0, NA), ncol = 3, byrow = T)
-            vi_stack <- reclassify(vi_stack, m, right = F)
-            print("Got rid of negative values; VI is not LSWI")
-          } else {
-            print("Kept all values; VI is LSWI")
-          }
-
-          vi_out <- mean(vi_stack, na.rm = T)
-
-          out_name <- file_path_sans_ext(basename(sub_dir_files[h]))
-          writeRaster(vi_out, paste0(temp_output_dir, "/", out_name, "_8-day.tif"), overwrite = TRUE, NAflag = -9999)
-
-        } else {
-
-          remaining_files <- length(sub_dir_files) - h
-          vi_stack <- stack(sub_dir_files[h:h + remaining_files])
-
-          # Set extent of MCD rasters
-          ext <- extent(-180, 180, -90, 90)
-          extent(vi_stack) <- ext
-          vi_stack <- setExtent(vi_stack, ext)
-
-          # Reproject
-          vi_stack <- projectRaster(vi_stack, template_raster)
-
-          # Valid values are >= 0, so set all negative to NA (right=F will not set 0 to NA)
-          m <- matrix(c(-Inf, 0, NA), ncol = 3, byrow = T)
-          vi_stack <- reclassify(vi_stack, m, right = F)
-
-          vi_out <- mean(vi_stack, na.rm = T)
-
-          out_name <- file_path_sans_ext(basename(sub_dir_files[h]))
-          writeRaster(vi_out, paste0(temp_output_dir, "/", out_name, "_8-day.tif"), overwrite = TRUE, NAflag = -9999)
-        }
-        print(paste0("Saved file to: ", temp_output_dir, "/", out_name, "_8-day.tif"))
-      }
+      
+      # Mean up the rasters and get output file name
+      vi_out   <- mean(vi_stack, na.rm = T)
+      out_name <- file_path_sans_ext(basename(sub_dir_files[h]))
+      
+      writeRaster(vi_out, paste0(output_dir, "/", out_name, "_8-day.tif"), overwrite = TRUE, NAflag = -9999, datatype = 'INT4S')
+      
+      print(paste0("Saved file to: ", output_dir, "/", out_name, "_8-day.tif"))
     }
   }
 }
-to_month       <- function (in_dir, out_dir, vis, mask) {
+to_month   <- function (vi, in_dir, out_dir, tmpdir) {
 
-  # Empty raster for template
-  template_raster <- raster(xmn = -180, xmx = 180, ymn = -90, ymx = 90, ncols = 7200, nrows = 3600, crs = "+proj=longlat +datum=WGS84")
-  land_mask       <- raster(mask)
+  tmp_create(tmpdir)
+  
+  sub_dir_list <- list.dirs(paste0(in_dir, "/", vi), recursive = FALSE)
 
-  # Set extent of mask
-  ext <- extent(-180, 180, -90, 90)
-  extent(land_mask) <- ext
-  land_mask <- setExtent(land_mask, ext)
+  for (s in 1:length(sub_dir_list)) {
+    
+    start <- Sys.time() # Start clock for timing
 
-  # Reproject MCD rasters and mask
-  land_mask <- projectRaster(land_mask, template_raster)
+    year <- as.numeric(basename(sub_dir_list[s]))
+    print(paste0("Starting from ", in_dir, "/", vi, "/", year, ". Start time is ", start))
+    
+    output_dir <- paste0(out_dir, "/", vi, "/", year)
+    print(paste0("Output dir is: ", output_dir))
 
-  for (i in 1:length(vis)) {
+    if (!dir.exists(output_dir)) { # Create output dir
+      dir.create(output_dir, recursive = TRUE)
+    }
 
-    sub_dir_list <- list.dirs(paste0(in_dir, "/", vis[i]), recursive = FALSE)
-    print(paste0("Starting ", vis[i], ". Input dir is ", in_dir, "/", vis[i]))
+    sub_dir_files <- list.files(sub_dir_list[s], full.names = TRUE, pattern = "*.tif$")
 
-    for (s in 1:length(sub_dir_list)) {
+    leap <- check_leap(year)
 
-      year <- as.numeric(basename(sub_dir_list[s]))
+    print(paste0("Year ", year, " is a leap year: ", leap))
 
-      temp_output_dir <- paste0(out_dir, "/", vis[i], "/", year)
-      print(paste0("Output dir is: ", temp_output_dir))
+    doy <- 1
 
-      if (!dir.exists(temp_output_dir)) { # Create output dirs for each year
-        dir.create(temp_output_dir, recursive = TRUE)
-      }
+    for (m in 1:12) {
 
-      sub_dir_files <- list.files(sub_dir_list[s], full.names = TRUE, pattern = "*.tif$")
+      if (m == 1 || m == 3 || m == 5 || m == 7 || m == 8 || m == 10 || m == 12) {
 
-      leap <- check_leap(year)
+        month_file_list <- sub_dir_files[doy : (doy + 30)]
+        month_file_list <- month_file_list[!is.na(month_file_list)]
 
-      print(paste0("Year ", year, " is a leap year: ", leap))
+        if (length(month_file_list) == 31) {
 
-      doy <- 1
-
-      for (m in 1:12) {
-
-        if (m == 1 || m == 3 || m == 5 || m == 7 || m == 8 || m == 10 || m == 12) {
-
-          month_file_list <- sub_dir_files[doy : (doy + 30)]
-          month_file_list <- month_file_list[!is.na(month_file_list)]
-
-          if (length(month_file_list) == 31) {
-
-            print(paste0("Month is ", m, " and the files are for DOYs ", doy, " to ", doy + 30))
-            vi_stack <- stack(month_file_list)
-            doy <- doy + 31
-
-          } else {
-
-            print(paste0("Skipping month ", m, " for year ", year, " due to insufficient number of files, where n = ", length(month_file_list)))
-
-          }
-
-        } else if (m == 4 || m == 6 || m == 9 || m == 11) {
-
-          month_file_list <- sub_dir_files[doy : (doy + 29)]
-          month_file_list <- month_file_list[!is.na(month_file_list)]
-
-          if (length(month_file_list) == 30) {
-
-            print(paste0("Month is ", m, " and the files are for DOYs ", doy, " to ", doy + 29))
-            vi_stack <- stack(month_file_list)
-            doy <- doy + 30
-
-          } else {
-
-            print(paste0("Skipping month ", m, " for year ", year, " due to insufficient number of files, where n = ", length(month_file_list)))
-
-          }
-
-        } else if (m == 2) {
-
-          if (leap == FALSE) {
-
-            month_file_list <- sub_dir_files[doy : (doy + 27)]
-            month_file_list <- month_file_list[!is.na(month_file_list)]
-
-            if (length(month_file_list) == 28) {
-
-              print(paste0("Month is ", m, " and the files are for DOYs ", doy, " to ", doy + 27))
-              print("Not a leap year! Feb has 28 days.")
-              vi_stack <- stack(month_file_list)
-              doy <- doy + 28
-
-            } else {
-
-              print(paste0("Skipping month ", m, " for year ", year, " due to insufficient number of files, where n = ", length(month_file_list)))
-
-            }
-
-          } else if (leap == TRUE) {
-
-            month_file_list <- sub_dir_files[doy : (doy + 28)]
-            month_file_list <- month_file_list[!is.na(month_file_list)]
-
-            if (length(month_file_list) == 29) {
-
-              print(paste0("Month is ", m, " and the files are for DOYs ", doy, " to ", doy + 28))
-              print("Hello leap year! Feb has 29 days.")
-              vi_stack <- stack(month_file_list)
-              doy <- doy + 29
-
-            } else {
-
-              print(paste0("Skipping month ", m, " for year ", year, " due to insufficient number of files, where n = ", length(month_file_list)))
-
-            }
-          }
-        }
-
-        # Set extent of MCD rasters and mask
-        extent(vi_stack)  <- ext
-        vi_stack  <- setExtent(vi_stack, ext)
-
-        # Reproject MCD rasters and mask
-        vi_stack  <- projectRaster(vi_stack, template_raster)
-
-        # Get rid of negative values (LSWI can be negative)
-        if (vis[i] != "LSWI") {
-
-          # Valid values are >= 0, so set all negative to NA (right = F will not set 0 to NA)
-          mat <- matrix(c(-Inf, 0, NA), ncol = 3, byrow = T)
-          vi_stack <- reclassify(vi_stack, mat, right = F)
-          print("Got rid of negative values; VI is not LSWI")
+          print(paste0("Month is ", m, " and the files are for DOYs ", doy, " to ", doy + 30))
+          vi_stack <- rast(month_file_list)
+          doy <- doy + 31
+          flag <- TRUE # write out the file?
 
         } else {
 
-          print("Kept all values; VI is LSWI")
+          print(paste0("Skipping month ", m, " for year ", year, " due to insufficient number of files, where n = ", length(month_file_list)))
+          flag <- FALSE # write out the file?
 
         }
 
-        vi_out <- mean(vi_stack, na.rm = T) # Monthly mean
-        vi_out <- mask(vi_out, land_mask, maskvalue = 0) # Mask by land
+      } else if (m == 4 || m == 6 || m == 9 || m == 11) {
 
+        month_file_list <- sub_dir_files[doy : (doy + 29)]
+        month_file_list <- month_file_list[!is.na(month_file_list)]
+
+        if (length(month_file_list) == 30) {
+
+          print(paste0("Month is ", m, " and the files are for DOYs ", doy, " to ", doy + 29))
+          vi_stack <- rast(month_file_list)
+          doy <- doy + 30
+          flag <- TRUE # write out the file?
+
+        } else {
+
+          print(paste0("Skipping month ", m, " for year ", year, " due to insufficient number of files, where n = ", length(month_file_list)))
+          flag <- FALSE # write out the file?
+
+        }
+
+      } else if (m == 2) {
+
+        if (leap == FALSE) {
+
+          month_file_list <- sub_dir_files[doy : (doy + 27)]
+          month_file_list <- month_file_list[!is.na(month_file_list)]
+
+          if (length(month_file_list) == 28) {
+
+            print(paste0("Month is ", m, " and the files are for DOYs ", doy, " to ", doy + 27))
+            print("Not a leap year! Feb has 28 days.")
+            vi_stack <- rast(month_file_list)
+            doy <- doy + 28
+            flag <- TRUE # write out the file?
+
+          } else {
+
+            print(paste0("Skipping month ", m, " for year ", year, " due to insufficient number of files, where n = ", length(month_file_list)))
+            flag <- FALSE # write out the file?
+          }
+
+        } else if (leap == TRUE) {
+
+          month_file_list <- sub_dir_files[doy : (doy + 28)]
+          month_file_list <- month_file_list[!is.na(month_file_list)]
+
+          if (length(month_file_list) == 29) {
+
+            print(paste0("Month is ", m, " and the files are for DOYs ", doy, " to ", doy + 28))
+            print("Hello leap year! Feb has 29 days.")
+            vi_stack <- rast(month_file_list)
+            doy <- doy + 29
+            flag <- TRUE # write out the file?
+
+          } else {
+
+            print(paste0("Skipping month ", m, " for year ", year, " due to insufficient number of files, where n = ", length(month_file_list)))
+            flag <- FALSE # write out the file?
+          }
+        }
+      }
+      
+      if (flag == TRUE) {
+        
         month_num <- sprintf("%02.0f", m)
         out_name  <- substr(basename(sub_dir_files[1]), 1, 13) # Get first 13 characters of filename
-        print(paste0("Saving file to: ", temp_output_dir, "/", out_name, month_num, "_", vis[i], "_Monthly.tif"))
-        writeRaster(vi_out, paste0(temp_output_dir, "/", out_name, month_num, "_", vis[i], "_Monthly.tif"), overwrite = TRUE, NAflag = -9999)
+        out_name  <- paste0(output_dir, "/", out_name, ".", month_num, ".", vi, ".Monthly.tif")
+        
+        vi_out <- mean(vi_stack, na.rm = TRUE,
+                       filename = out_name, overwrite = TRUE, NAflag = -9999 , datatype = 'INT4S')
+        
+        writeRaster(vi_out, filename = out_name, overwrite = TRUE, NAflag = -9999 , datatype = 'INT4S')
+        
+        print(paste0("Saved file to: ", out_name))
       }
     }
+    
+    print(paste0("Done with ", in_dir, "/", vi, "/", year, ". Time difference in minutes: ", round(difftime(Sys.time(), start, units = "mins"), 2)))
   }
+  
+  tmp_remove(tmpdir)
 }
-aggregate_0.20 <- function (in_dir, out_dir) {
 
-  if (!dir.exists(out_dir)) { # Create output dirs for each year
-    dir.create(out_dir, recursive = TRUE)
-  }
-
-  file_list <- list.files(in_dir, full.names = TRUE, pattern = "*.nc$", recursive = TRUE)
-
-  for (f in 1:length(file_list)) {
-
-    out_name <- file_path_sans_ext(basename(file_list[f]))
-    out_name <- paste0(out_name, "_1.0-deg.nc")
-
-    vi_stack <- stack(file_list[f])
-    vi_stack <- aggregate(vi_stack, fact = 20, fun = mean, na.rm = TRUE)
-
-    out_var <- file_path_sans_ext(basename(file_list[f]))
-    out_var <- substr(out_var, 19, nchar(out_var) - 6)
-
-    writeRaster(vi_stack, paste0(out_dir, "/", out_name), overwrite = TRUE, format = "CDF", NAflag = -9999, datatype = 'FLT4S', compression = 4, varname = out_var,
-                longname = paste0("8-day MCD43C4 ", out_var), xname = "Longitude",  yname = "Latitude", zname = "Time (DOY)", zunit = "8-days")
-  }
-}
-aggregate_tiff <- function (in_dir, out_dir, res, vis) {
-
-  for (i in 1:length(vis)) {
-
-    sub_dir_list <- list.dirs(paste0(in_dir, "/", vis[i]), recursive = FALSE)
-    print(paste0("Starting ", vis[i], ". Input dir is ", in_dir, "/", vis[i]))
-
-    for (s in 1:length(sub_dir_list)) {
-
-      temp_output_dir <- paste0(out_dir, "/", vis[i], "/", basename(sub_dir_list[s]))
-      print(paste0("Output dir is: ", temp_output_dir))
-
-      if (!dir.exists(temp_output_dir)) { # Create output dirs for each year
-        dir.create(temp_output_dir, recursive = TRUE)
-      }
-
-      sub_dir_files <- list.files(sub_dir_list[s], full.names = TRUE, pattern = "*.tif$")
-
-      for (h in 1:length(sub_dir_files)){
-
-        out_name <- file_path_sans_ext(basename(sub_dir_files[h]))
-        out_name <- paste0(out_name, "_", res, "-deg.tif")
-
-        vi <- raster(sub_dir_files[h])
-        vi <- aggregate(vi, fact = (res / 0.05), fun = mean, na.rm = TRUE)
-
-        writeRaster(vi, paste0(temp_output_dir, "/", out_name), overwrite = TRUE)
-
-        print(paste0("Saved file to: ", temp_output_dir, "/", out_name))
-      }
-    }
-  }
-}
+# Dedicate each VI instance to a core
+mclapply(vi_list, to_month, mc.preschedule = TRUE, mc.cores = 4, in_dir = daily_vi_dir, out_dir = output_dir, tmpdir = tmpdir)
