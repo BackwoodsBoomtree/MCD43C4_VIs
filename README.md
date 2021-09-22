@@ -47,7 +47,7 @@ Russell Doughty, PhD - russell.doughty@ou.edu
 
 ## Potential Future Improvements
 
-* None
+* Work fix_extent code into MODIS_HDF_to_TIFF_VIs.R to ensure proper extent on output.
 
 ## Citations
 
