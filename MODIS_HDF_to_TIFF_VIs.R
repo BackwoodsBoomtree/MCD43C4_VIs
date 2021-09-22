@@ -48,13 +48,13 @@ calc_lswi  <- function(b2, b6) {
 }
 mask_all   <- function(index, data_cube, qc_filter, snow_filter, land_mask) {
 
-  index <- mask(index, data_cube[8], maskvalues = qc_filter)
+  index <- mask(index, data_cube[[8]], maskvalues = qc_filter)
   index <- mask(index, land_mask, maskvalues = 0)
 
   if (snow_filter == 0) {
-    index <- mask(index, data_cube[11], maskvalues = 0, inverse = TRUE)
+    index <- mask(index, data_cube[[11]], maskvalues = 0, inverse = TRUE)
   } else {
-    s_mask <- data_cube[11]
+    s_mask <- data_cube[[11]]
     s_mask[s_mask > snow_filter] <- 101
     index <- mask(index, s_mask, maskvalues = 101)
   }
@@ -87,11 +87,11 @@ save_vis   <- function(filename, vi_dir, vi_list) {
   
   tmp_create(tmpdir)
   
-  cube        <- sds(filename)
-  orig_extent <- ext(cube)
+  cube <- sds(filename)
   
   # Import land mask and make sure extent matches the cube
   land_mask      <- rast(land_mask)
+  orig_extent    <- ext(cube)
   ext(land_mask) <- orig_extent
 
   if ("EVI" %in% vi_list) {
