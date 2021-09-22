@@ -16,7 +16,7 @@ This code is originally designed to work with [MCD43C4 v006](https://lpdaac.usgs
 
 ## Workflow
 
-The workflow and codes are listed above in order. It might be necessary to correct the extent on some output files after running MODIS_HDF_to_TIFF_VIs.R. For some reason, the extent on about 10% of the files were not corrected during the processing with this code - which may have had something to do with parallel processing. I have reordered the code and this should not happen again, but if it does run fix_extent.R to loop through the files and correct the extent.
+The workflow and codes are listed above in order. It might be necessary to correct the extent on some output files after running MODIS_HDF_to_TIFF_VIs.R. For some reason, the extent on about 10% of the files were not corrected during the processing with this code - which may have had something to do with parallel processing. Use fix_extent.R to identify the files with improper extent and overwrite them in place. To double check it goes smoothly before overwriting, use fix_extent_into_new_dir.R and copy, paste, and overwrite files manually if the new files look good.
 
 ## Masks
 
