@@ -6,7 +6,7 @@ terraOptions(memfrac = 0.8) # Fraction of memory to allow terra
 
 tmpdir       <- "/mnt/c/Rwork"
 daily_vi_dir <- "/mnt/g/MCD43C4/tif/Daily/0.05"
-output_dir   <- "/mnt/g/MCD43C4/tif/Monthly/0.05"
+output_dir   <- "/mnt/g/MCD43C4/tif/8-day/0.05"
 vi_list      <- c("EVI", "NDVI", "NIRv", "LSWI")
 
 tmp_create <- function(tmpdir) {
@@ -39,45 +39,66 @@ check_leap <- function (year) {
     return(FALSE)
   }
 }
-to_8day    <- function (vi, in_dir, out_dir, years) {
+to_8day    <- function (vi, in_dir, out_dir, tmpdir) {
 
+  tmp_create(tmpdir)
+  
   sub_dir_list <- list.dirs(paste0(in_dir, "/", vi), recursive = FALSE)
   print(paste0("Starting ", vi, ". Input dir is ", in_dir, "/", vi))
 
   for (s in 1:length(sub_dir_list)) {
 
-    output_dir <- paste0(out_dir, "/", vi, "/", basename(sub_dir_list[s]))
+    start <- Sys.time() # Start clock for timing
+    
+    year <- as.numeric(basename(sub_dir_list[s]))
+    print(paste0("Starting from year ", year, ". Start time is ", start))
+    
+    output_dir <- paste0(out_dir, "/", vi, "/", year)
     print(paste0("Output dir is: ", output_dir))
-
+    
     if (!dir.exists(output_dir)) { # Create output dirs for each year
       dir.create(output_dir, recursive = TRUE)
     }
 
-    sub_dir_files <- list.files(sub_dir_list[s], full.names = TRUE, pattern = "*.tif$")
+    sub_dir_files <- list.files(paste0("/mnt/g/MCD43C4/tif/Daily/0.05", "/", vi, "/", year), full.names = TRUE, pattern = "*.tif$")
 
-    for (h in seq(1, length(sub_dir_files), 8)){
+    for (h in seq(1, length(sub_dir_files), 8)) {
 
       print(paste0("Running 8-day mean starting with DOY ", h))
+      
+      file_list_8day <- sub_dir_files[h : (h + 7)]
+      file_list_8day <- file_list_8day[!is.na(file_list_8day)]
 
-      if (h != 361) {
+      if (h != 361 && length(file_list_8day) == 8) {
 
-        vi_stack <- rast(sub_dir_files[h:h + 7])
+        vi_stack <- rast(file_list_8day)
+        flag     <- TRUE
 
-      } else {
+      } else if (h == 361 && (length(sub_dir_files) == 365 || length(sub_dir_files == 366))) {
         
-        remaining_files <- length(sub_dir_files) - h
-        vi_stack        <- rast(sub_dir_files[h:h + remaining_files])
+        vi_stack <- rast(file_list_8day)
+        flag     <- TRUE
+        
+      } else if (h != 361 && length(file_list_8day) != 8) {
+        
+        print(paste0("Skipping DOY ", h, " for year ", year, " due to insufficient number of files."))
+        flag     <- FALSE
       }
       
       # Mean up the rasters and get output file name
-      vi_out   <- mean(vi_stack, na.rm = T)
-      out_name <- file_path_sans_ext(basename(sub_dir_files[h]))
-      
-      writeRaster(vi_out, paste0(output_dir, "/", out_name, "_8-day.tif"), overwrite = TRUE, NAflag = -9999, datatype = 'INT4S')
-      
-      print(paste0("Saved file to: ", output_dir, "/", out_name, "_8-day.tif"))
+      if (flag == TRUE) {
+        
+        out_name  <- substr(basename(sub_dir_files[h]), 1, 16) # Get first 16 characters of filename
+        out_name  <- paste0(output_dir, "/", out_name, ".", vi, ".8day.tif")
+        
+        vi_out   <- mean(vi_stack, na.rm = TRUE)
+
+        writeRaster(vi_out, filename = out_name, overwrite = TRUE, NAflag = -9999, datatype = 'INT4S')
+        print(paste0("Saved file to: ", out_name))
+      }
     }
   }
+  tmp_remove(tmpdir)
 }
 to_month   <- function (vi, in_dir, out_dir, tmpdir) {
 
@@ -195,10 +216,9 @@ to_month   <- function (vi, in_dir, out_dir, tmpdir) {
         out_name  <- substr(basename(sub_dir_files[1]), 1, 13) # Get first 13 characters of filename
         out_name  <- paste0(output_dir, "/", out_name, ".", month_num, ".", vi, ".Monthly.tif")
         
-        vi_out <- mean(vi_stack, na.rm = TRUE,
-                       filename = out_name, overwrite = TRUE, NAflag = -9999 , datatype = 'INT4S')
+        vi_out <- mean(vi_stack, na.rm = TRUE)
         
-        writeRaster(vi_out, filename = out_name, overwrite = TRUE, NAflag = -9999 , datatype = 'INT4S')
+        writeRaster(vi_out, filename = out_name, overwrite = TRUE, NAflag = -9999, datatype = 'INT4S')
         
         print(paste0("Saved file to: ", out_name))
       }
@@ -211,4 +231,5 @@ to_month   <- function (vi, in_dir, out_dir, tmpdir) {
 }
 
 # Dedicate each VI instance to a core
-mclapply(vi_list, to_month, mc.preschedule = TRUE, mc.cores = 4, in_dir = daily_vi_dir, out_dir = output_dir, tmpdir = tmpdir)
+# mclapply(vi_list, to_month, mc.cores = 4, in_dir = daily_vi_dir, out_dir = output_dir, tmpdir = tmpdir)
+mclapply(vi_list, to_8day, mc.cores = 4, in_dir = daily_vi_dir, out_dir = output_dir, tmpdir = tmpdir)
