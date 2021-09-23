@@ -3,12 +3,11 @@ library(terra)
 library(parallel)
 
 fine_input    <- "/mnt/g/MCD43C4/tif/Monthly/0.05"
-coarse_output <- "/mnt/g/MCD43C4/tif/Monthly/0.25"
-temporal_res  <- "Monthly"
+coarse_output <- "/mnt/g/MCD43C4/tif/Monthly/0.20"
 vi_list       <- c("EVI", "NDVI", "NIRv", "LSWI")
-spatial_res   <- 0.25 # in degrees
+spatial_res   <- 0.20 # in degrees
 
-agg_tiff <- function (vi, in_dir, out_dir, t_res, s_res) {
+agg_tiff <- function (vi, in_dir, out_dir, s_res) {
   
   sub_dir_list <- list.dirs(paste0(in_dir, "/", vi), recursive = FALSE)
   print(paste0("Starting ", vi, ". Input dir is ", in_dir, "/", vi))
@@ -41,4 +40,4 @@ agg_tiff <- function (vi, in_dir, out_dir, t_res, s_res) {
 }
 
 # Dedicate each VI instance to a core
-mclapply(vi_list, agg_tiff, mc.preschedule = TRUE, mc.cores = 4, in_dir = fine_input, out_dir = coarse_output, t_res = temporal_res, s_res = spatial_res)
+mclapply(vi_list, agg_tiff, mc.preschedule = TRUE, mc.cores = 4, in_dir = fine_input, out_dir = coarse_output, s_res = spatial_res)
