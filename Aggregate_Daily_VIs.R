@@ -24,7 +24,7 @@ tmp_remove <- function(tmpdir) {
   p_tmp_dir <- paste0(tmpdir, "/", as.character(Sys.getpid())) # Process ID
   unlink(p_tmp_dir, recursive = TRUE)
 }
-check_leap <- function (year) {
+check_leap <- function(year) {
     if((year %% 4) == 0) {
     if((year %% 100) == 0) {
       if((year %% 400) == 0) {
@@ -39,7 +39,7 @@ check_leap <- function (year) {
     return(FALSE)
   }
 }
-to_8day    <- function (vi, in_dir, out_dir, tmpdir) {
+to_8day    <- function(vi, in_dir, out_dir, tmpdir) {
 
   tmp_create(tmpdir)
   
@@ -60,7 +60,7 @@ to_8day    <- function (vi, in_dir, out_dir, tmpdir) {
       dir.create(output_dir, recursive = TRUE)
     }
 
-    sub_dir_files <- list.files(paste0("/mnt/g/MCD43C4/tif/Daily/0.05", "/", vi, "/", year), full.names = TRUE, pattern = "*.tif$")
+    sub_dir_files <- list.files(paste0(in_dir, "/", vi, "/", year), full.names = TRUE, pattern = "*.tif$")
 
     for (h in seq(1, length(sub_dir_files), 8)) {
 

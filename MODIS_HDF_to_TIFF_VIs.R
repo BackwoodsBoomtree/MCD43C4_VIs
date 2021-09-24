@@ -128,21 +128,6 @@ save_vis   <- function(filename, vi_dir, vi_list) {
   
   tmp_remove(tmpdir)
 
-  #### For the old raster package ####
-  # ### List of tmp files from raster package
-  # tmp_file_list <- list.files(paste0(tempdir(), "/raster"), full.names = TRUE, recursive = TRUE)
-  # print("tmp file list")
-  # print(tmp_file_list)
-  # 
-  # # Isolate PID from temporary raster files and make sure it matches exactly
-  # pid           <- as.character(Sys.getpid()) # Filter list by processor ID
-  # tmp_file_list <- tmp_file_list[grepl(paste0("\\<", pid, "\\>"), substr(basename(tmp_file_list), 25, nchar(basename(tmp_file_list)) -10))]
-  # print(pid)
-  # print(tmp_file_list)
-  # 
-  # # Remove raster and R tmp files
-  # unlink(c(tmp_file_list, tempfile()))
-
   print(paste0("Done with ", file_out, ". Time difference in minutes: ", round(difftime(Sys.time(), start, units = "mins"), 2)))
 
 }
