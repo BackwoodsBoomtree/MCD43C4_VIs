@@ -1,6 +1,4 @@
-# MODIS_HDF_to_TIFF_VIs
-
-Calculate Vegetation Indices from MODIS data
+# MCD43 Vegetation Indicies
 
 These codes can achieve the following:
 
