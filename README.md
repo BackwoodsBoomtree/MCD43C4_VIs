@@ -1,4 +1,4 @@
-# MCD43 Vegetation Indicies
+# MCD43 Vegetation Indices
 
 These codes can achieve the following:
 
