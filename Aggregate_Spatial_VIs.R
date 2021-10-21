@@ -26,7 +26,7 @@ agg_tiff <- function (vi, in_dir, out_dir, s_res) {
     
     for (h in 1:length(sub_dir_files)){
       
-      out_name <- basename(substr(sub_dir_files[h], 1, nchar(sub_dir_files[h])-4)) # Get first 13 characters of filename
+      out_name <- basename(substr(sub_dir_files[h], 1, nchar(sub_dir_files[h])-4))
       out_name <- paste0(temp_output_dir, "/", out_name, ".", s_res, ".deg.tif")
       
       vi_out <- rast(sub_dir_files[h])

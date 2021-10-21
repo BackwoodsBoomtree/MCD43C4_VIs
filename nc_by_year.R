@@ -1,49 +1,46 @@
 
 library(terra)
+library(parallel)
 
 tif_input    <- "/mnt/g/MCD43C4/tif/Monthly/0.05"
 nc_output    <- "/mnt/g/MCD43C4/nc/Monthly/0.05"
+time_res     <- "Monthly"
+spatial_res  <- "0.05"
 
-
-nc_by_vi_year  <- function (in_dir, out_dir) {
+nc_by_vi_year <- function (in_dir, out_dir, t_res, s_res) {
   
-  vi_dirs <- list.dirs(in_dir, recursive = FALSE)
+  year_dirs <- list.dirs(in_dir, recursive = FALSE)
 
-  for (i in 1:length(vi_dirs)) {
-
-    year_dirs <- list.dirs(vi_dirs, recursive = FALSE)
-
-    for (s in 1:length(sub_dir_list)) {
-
-      print(paste0("Starting to put ", vis[i], " files into .nc from the year ", basename(sub_dir_list[s])))
-      sub_dir_files <- list.files(sub_dir_list[s], full.names = TRUE, pattern = "*.tif$")
-
-      temp_output_dir <- paste0(out_dir, "/", res, "/", vis[i])
-      print(paste0("Output dir is: ", temp_output_dir))
-
-      if (!dir.exists(temp_output_dir)) { # Create output dirs for each year
-        dir.create(temp_output_dir, recursive = TRUE)
-      }
-
-      vi_stack <- stack(sub_dir_files)
-
-      # For some reason, some large values in a few pixels for EVI; kick them out
-      if (vis[i] != "LSWI") {
-        # old way
-        # m_pos <- matrix(c(1, Inf, NA), ncol = 3, byrow = T)
-        # vi_stack <- reclassify(vi_stack, m_pos)
-
-        vi_stack <- clamp(vi_stack, lower = 0, upper = 1, useValues = FALSE) # F sets values outside threshold to NA
-        print("Got rid of values > 1; VI is not LSWI")
-      }
-
-      vi_stack <- round(vi_stack, digits = 4)
-
-      out_name <- substr(basename(sub_dir_files[1]), 1, 13)
-      out_name <- paste0(out_name, ".006_", vis[i], "_Monthly.nc")
-      writeRaster(vi_stack, paste0(temp_output_dir, "/", out_name), overwrite = TRUE, format = "CDF", NAflag = -9999, datatype = 'FLT4S', compression = 4, varname = vis[i],
-                  longname = paste0("Monthly MCD43C4 v006 ", vis[i]), xname = "Longitude",  yname = "Latitude", zname = "Time", zunit = "Month")
-      print(paste0("Saved file to: ", temp_output_dir, "/", out_name))
+  for (i in 1:length(year_dirs)) {
+    
+    # Build filename including two parent dirs
+    parts      <- unlist(strsplit(year_dirs[i], .Platform$file.sep))
+    vi         <- parts[length(parts) - 1]
+    year       <- parts[length(parts)]
+    output_dir <- paste(out_dir, vi, year, sep = "/")
+    
+    if (!dir.exists(output_dir)) {
+      dir.create(output_dir, recursive = TRUE)
     }
+
+    print(paste0("Placing files from ", year_dirs[i], " into .nc file."))
+    print(paste0("Output dir is: ", output_dir))
+    
+    file_list <- list.files(year_dirs[i], full.names = TRUE, pattern = "*.tif$")
+
+    vi_stack <- sds(file_list)
+
+    out_name <- substr(basename(file_list[1]), 1, 13)
+    out_name <- paste(out_name, vi, t_res, s_res, "nc", sep = ".")
+    out_name <- paste0(output_dir, "/", out_name)
+    l_name   <- paste0(t_res, " MCD43C4 v006 ", vi)
+    writeCDF(vi_stack, filename = out_name, overwrite = TRUE)
+    print(paste0("Saved file to: ", out_name))
   }
 }
+
+
+vi_dirs      <- list.dirs(tif_input, recursive = FALSE)
+
+# Dedicate each VI instance to a core
+mclapply(vi_dirs, nc_by_vi_year, mc.cores = 1, out_dir = nc_output, t_res = time_res, s_res = spatial_res)
