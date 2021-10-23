@@ -80,10 +80,11 @@ tmp_remove   <- function(tmpdir) {
   p_tmp_dir <- paste0(tmpdir, "/", as.character(Sys.getpid())) # Process ID
   unlink(p_tmp_dir, recursive = TRUE)
 }
-save_vis     <- function(filename, vi_dir, vi_list) {
+save_vis     <- function(filename, vi_dir, vi) {
   
   start <- Sys.time() # Start clock for timing
   file_out <- substr(basename(filename), 1, nchar(basename(filename)) - 18)
+  file_out <- paste0(file_out, ".", vi, ".tif")
   print(paste0("Working on ", file_out, " starting at ", start))
   
   tmp_create(tmpdir)
@@ -95,25 +96,23 @@ save_vis     <- function(filename, vi_dir, vi_list) {
   orig_extent    <- ext(cube)
   ext(land_mask) <- orig_extent
   
-  for (vi in vi_list) {
-    if (vi == "EVI") {
-      index      <- calc_evi(cube[[1]], cube[[2]], cube[[3]])
-    } else if (vi == "NDVI") {
-      index      <- calc_ndvi(cube[[1]], cube[[2]])
-    } else if (vi == "NIRv") {
-      index      <- calc_nirv(cube[[1]], cube[[2]])
-    } else if (vi == "LSWI") {
-      index      <- calc_lswi(cube[[2]], cube[[6]])
-    } else {
-      print(paste0(vi, " is not allowed. Must be EVI, NDVI, NIRv, or LSWI. Exiting."))
-      exit()
-    }
-    index      <- mask_all(index, cube, qc_filter, snow_filter, land_mask)
-    ext(index) <- c(-180, 180, -90, 90)
-    index      <- proj_wgs84(index)
-    writeRaster(index, paste0(vi_dir, "/", vi, "/", file_out, ".", vi, ".tif"), overwrite = TRUE, datatype = 'INT4S', NAflag = -9999)
+  if (vi == "EVI") {
+    index      <- calc_evi(cube[[1]], cube[[2]], cube[[3]])
+  } else if (vi == "NDVI") {
+    index      <- calc_ndvi(cube[[1]], cube[[2]])
+  } else if (vi == "NIRv") {
+    index      <- calc_nirv(cube[[1]], cube[[2]])
+  } else if (vi == "LSWI") {
+    index      <- calc_lswi(cube[[2]], cube[[6]])
+  } else {
+    print(paste0(vi, " is not allowed. Must be EVI, NDVI, NIRv, or LSWI. Exiting."))
+    exit()
   }
-  
+  index      <- mask_all(index, cube, qc_filter, snow_filter, land_mask)
+  ext(index) <- c(-180, 180, -90, 90)
+  index      <- proj_wgs84(index)
+  writeRaster(index, paste0(vi_dir, "/", vi, "/", file_out), overwrite = TRUE, datatype = 'INT4S', NAflag = -9999)
+
   tmp_remove(tmpdir)
   
   print(paste0("Done with ", file_out, ". Time difference in minutes: ", round(difftime(Sys.time(), start, units = "mins"), 2)))
@@ -161,7 +160,10 @@ for (vi in vi_list) {
 
 # hdf_list <- missing_list(hdf_input, "/mnt/g/MCD43C4/tif/Daily/0.05/NIRv")
 hdf_list <- list.files(hdf_input, pattern = "*.hdf$", full.names = TRUE, recursive = TRUE)
-mclapply(hdf_list, save_vis, mc.preschedule = FALSE, mc.cores = 3, vi_dir = vi_dir, vi_list = vi_list)
+
+for (vi in vi_list) {
+  mclapply(hdf_list, save_vis, mc.preschedule = FALSE, mc.cores = 5, vi_dir = vi_dir, vi = vi)
+}
 
 
 ######## FOR SLURM ##########
