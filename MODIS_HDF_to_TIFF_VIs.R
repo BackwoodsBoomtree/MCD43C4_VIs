@@ -8,9 +8,10 @@ terraOptions(memfrac = 0.8) # Fraction of memory to allow terra
 #### Input variables ####
 
 tmpdir             <- "/mnt/c/Rwork"
-hdf_input          <- "/mnt/g/MCD43C4/sub"
+hdf_input          <- "/mnt/g/MCD43C4/original"
 vi_dir             <- "/mnt/g/MCD43C4/tif/Daily/0.05"
 vi_list            <- c("EVI", "NDVI", "NIRv", "LSWI")
+# vi_list            <- c("NIRv")
 qc_filter          <- c(4, 5) # Flags to exclude (0 = best, 5 = worst for MDC43C4)
 snow_filter        <- 0 # in percent (0 is no snow and excludes all pixels with any snow; 100 is no filter) 
 land_mask          <- "/mnt/c/Russell/Git/R/MCD43C4_VIs/Land_Ocean_0.05deg_Clark1866.tif"
@@ -47,10 +48,10 @@ calc_lswi    <- function(b2, b6) {
   index             <- round(index, digits = 4) * 10000
 }
 mask_all     <- function(index, data_cube, qc_filter, snow_filter, land_mask) {
-
+  
   index <- mask(index, data_cube[[8]], maskvalues = qc_filter)
   index <- mask(index, land_mask, maskvalues = 0)
-
+  
   if (snow_filter == 0) {
     index <- mask(index, data_cube[[11]], maskvalues = 0, inverse = TRUE)
   } else {
@@ -67,7 +68,7 @@ proj_wgs84   <- function(index) {
 tmp_create   <- function(tmpdir) {
   
   p_tmp_dir <- paste0(tmpdir, "/", as.character(Sys.getpid())) # Process ID
-
+  
   if (!dir.exists(p_tmp_dir)) {
     dir.create(p_tmp_dir, recursive = TRUE)
   }
@@ -112,11 +113,11 @@ save_vis     <- function(filename, vi_dir, vi_list) {
     index      <- proj_wgs84(index)
     writeRaster(index, paste0(vi_dir, "/", vi, "/", file_out, ".", vi, ".tif"), overwrite = TRUE, datatype = 'INT4S', NAflag = -9999)
   }
-
+  
   tmp_remove(tmpdir)
-
+  
   print(paste0("Done with ", file_out, ". Time difference in minutes: ", round(difftime(Sys.time(), start, units = "mins"), 2)))
-
+  
 }
 missing_list <- function(hdf_input, vi_dir){
   
@@ -143,7 +144,7 @@ missing_list <- function(hdf_input, vi_dir){
       
       file_out <- substr(basename(i), 1, nchar(basename(i)) - 13)
       pos      <- charmatch(file_out, hdf_list)
-
+      
       missing_files <- c(missing_files, hdf_list_full[pos])
     }
   }
@@ -160,7 +161,7 @@ for (vi in vi_list) {
 
 # hdf_list <- missing_list(hdf_input, "/mnt/g/MCD43C4/tif/Daily/0.05/NIRv")
 hdf_list <- list.files(hdf_input, pattern = "*.hdf$", full.names = TRUE, recursive = TRUE)
-mclapply(hdf_list, save_vis, mc.preschedule = FALSE, mc.cores = 5, vi_dir = vi_dir, vi_list = vi_list)
+mclapply(hdf_list, save_vis, mc.preschedule = FALSE, mc.cores = 3, vi_dir = vi_dir, vi_list = vi_list)
 
 
 ######## FOR SLURM ##########

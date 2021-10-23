@@ -34,6 +34,7 @@ Spatial aggregation can be done to any user defined spatial resolution.
 
 ## Notes
 
+* There might be 0 byte output files (zero size), or missing files all together due to some sort of issue. The missing_files() function can be used to identify missing and zero byte files and run the calcs again for those files.
 * The "Error in (function (x)  : attempt to apply non-function" message should be safely ignored. See https://github.com/rspatial/terra/issues/30.
 * Code has been updated to use the terra package, which is a replacement for the raster package. Terra has the ability to extract HDF4 subdatasets directly into memory using sds(), whereas the old workflow was to first write them out to tif using gdal_translate(). Speed is greatly improved.
 * The NC file output is basic and not CF compliant, but is sufficient. See my python code for producing CF-compliant NC files.
