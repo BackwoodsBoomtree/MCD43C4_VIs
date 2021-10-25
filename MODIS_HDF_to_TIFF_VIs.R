@@ -161,10 +161,13 @@ for (vi in vi_list) {
 # hdf_list <- missing_list(hdf_input, "/mnt/g/MCD43C4/tif/Daily/0.05/NIRv")
 hdf_list <- list.files(hdf_input, pattern = "*.hdf$", full.names = TRUE, recursive = TRUE)
 
+# Must use mc.preschedule = F
 for (vi in vi_list) {
-  mclapply(hdf_list, save_vis, mc.preschedule = FALSE, mc.cores = 5, vi_dir = vi_dir, vi = vi)
+  mclapply(hdf_list, save_vis, mc.cores = 6, mc.preschedule = FALSE, vi_dir = vi_dir, vi = vi)
 }
 
+# Delete tempdir
+unlink(tmpdir, recursive = TRUE)
 
 ######## FOR SLURM ##########
 
