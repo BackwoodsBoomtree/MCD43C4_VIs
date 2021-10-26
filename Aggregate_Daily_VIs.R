@@ -61,42 +61,124 @@ to_8day    <- function(vi, in_dir, out_dir, tmpdir) {
     }
 
     sub_dir_files <- list.files(paste0(in_dir, "/", vi, "/", year), full.names = TRUE, pattern = "*.tif$")
+    
+    if (year != 2000 && year != 2001) {
 
-    for (h in seq(1, length(sub_dir_files), 8)) {
-
-      print(paste0("Running 8-day mean starting with DOY ", h))
-      
-      file_list_8day <- sub_dir_files[h : (h + 7)]
-      file_list_8day <- file_list_8day[!is.na(file_list_8day)]
-
-      if (h != 361 && length(file_list_8day) == 8) {
-
-        vi_stack <- rast(file_list_8day)
-        flag     <- TRUE
-
-      } else if (h == 361 && (length(sub_dir_files) == 365 || length(sub_dir_files == 366))) {
+      for (h in seq(1, length(sub_dir_files), 8)) {
+  
+        print(paste0("Starting 8-day mean with DOY ", h, " for ", year))
         
-        vi_stack <- rast(file_list_8day)
-        flag     <- TRUE
+        file_list_8day <- sub_dir_files[h : (h + 7)]
+        file_list_8day <- file_list_8day[!is.na(file_list_8day)]
+  
+        if (h != 361 && length(file_list_8day) == 8) {
+  
+          vi_stack <- rast(file_list_8day)
+          flag     <- TRUE
+  
+        } else if (h == 361 && (length(sub_dir_files) == 365 || length(sub_dir_files == 366))) {
+          
+          vi_stack <- rast(file_list_8day)
+          flag     <- TRUE
+          
+        } else if (h != 361 && length(file_list_8day) != 8) {
+          
+          print(paste0("Skipping DOY ", h, " for year ", year, " due to insufficient number of files."))
+          flag     <- FALSE
+        }
         
-      } else if (h != 361 && length(file_list_8day) != 8) {
-        
-        print(paste0("Skipping DOY ", h, " for year ", year, " due to insufficient number of files."))
-        flag     <- FALSE
+        # Mean up the rasters and get output file name
+        if (flag == TRUE) {
+          
+          out_name  <- substr(basename(sub_dir_files[h]), 1, 16) # Get first 16 characters of filename
+          out_name  <- paste0(output_dir, "/", out_name, ".", vi, ".8day.tif")
+          
+          vi_out   <- mean(vi_stack, na.rm = TRUE)
+  
+          writeRaster(vi_out, filename = out_name, overwrite = TRUE, NAflag = -9999, datatype = 'INT4S')
+          print(paste0("Saved file to: ", out_name))
+        }
       }
+    } else if (year == 2000) {
+       
+      # Only 2 files for the first 8 days, so dump them
+      sub_dir_files <- tail(sub_dir_files, -2)
       
-      # Mean up the rasters and get output file name
-      if (flag == TRUE) {
+      doy_index <- seq(57, 365, 8)
+      
+      for (h in 1:length(doy_index)) {
+        
+        print(paste0("Starting 8-day mean with DOY ", doy_index[h], " for ", year))
+        
+        file_list_8day <- sub_dir_files[h : (h + 7)]
+        file_list_8day <- file_list_8day[!is.na(file_list_8day)]
+        
+        vi_stack <- rast(file_list_8day)
         
         out_name  <- substr(basename(sub_dir_files[h]), 1, 16) # Get first 16 characters of filename
         out_name  <- paste0(output_dir, "/", out_name, ".", vi, ".8day.tif")
         
         vi_out   <- mean(vi_stack, na.rm = TRUE)
-
+        
         writeRaster(vi_out, filename = out_name, overwrite = TRUE, NAflag = -9999, datatype = 'INT4S')
         print(paste0("Saved file to: ", out_name))
       }
+    } else if (year == 2001) {
+      
+      for (h in seq(1, 168, 8)) {
+        
+        print(paste0("Starting 8-day mean with DOY ", h, " for ", year))
+        
+        file_list_8day <- sub_dir_files[h : (h + 7)]
+        file_list_8day <- file_list_8day[!is.na(file_list_8day)]
+        
+        vi_stack <- rast(file_list_8day)
+        
+        out_name  <- substr(basename(sub_dir_files[h]), 1, 16) # Get first 16 characters of filename
+        out_name  <- paste0(output_dir, "/", out_name, ".", vi, ".8day.tif")
+        
+        vi_out   <- mean(vi_stack, na.rm = TRUE)
+        
+        writeRaster(vi_out, filename = out_name, overwrite = TRUE, NAflag = -9999, datatype = 'INT4S')
+        print(paste0("Saved file to: ", out_name))
+      }
+      
+      # Write raster for 8-day mean that is missing 2 files
+      print("Starting 8-day mean with DOY 73 for year 2001, for which MODIS has 2 missing days.")
+      
+      file_list_8day <- sub_dir_files[173 : 178]
+      
+      vi_stack <- rast(file_list_8day)
+      
+      out_name  <- substr(basename(sub_dir_files[h]), 1, 16) # Get first 16 characters of filename
+      out_name  <- paste0(output_dir, "/", out_name, ".", vi, ".8day.tif")
+      
+      vi_out   <- mean(vi_stack, na.rm = TRUE)
+      
+      writeRaster(vi_out, filename = out_name, overwrite = TRUE, NAflag = -9999, datatype = 'INT4S')
+      print(paste0("Saved file to: ", out_name))
+      
+      # Write the rest of the files
+      for (h in seq(177, 365, 8)) {
+        
+        print(paste0("Starting 8-day mean with DOY ", h, " for ", year))
+        
+        file_list_8day <- sub_dir_files[(h - 2) : (h - 2 + 7)]
+        file_list_8day <- file_list_8day[!is.na(file_list_8day)]
+        
+        vi_stack <- rast(file_list_8day)
+        
+        out_name  <- substr(basename(sub_dir_files[(h - 2)]), 1, 16) # Get first 16 characters of filename
+        out_name  <- paste0(output_dir, "/", out_name, ".", vi, ".8day.tif")
+        
+        vi_out   <- mean(vi_stack, na.rm = TRUE)
+        
+        writeRaster(vi_out, filename = out_name, overwrite = TRUE, NAflag = -9999, datatype = 'INT4S')
+        print(paste0("Saved file to: ", out_name))
+      }
+      
     }
+      
   }
   tmp_remove(tmpdir)
 }
@@ -232,4 +314,4 @@ to_month   <- function (vi, in_dir, out_dir, tmpdir) {
 
 # Dedicate each VI instance to a core
 # mclapply(vi_list, to_month, mc.cores = 4, in_dir = daily_vi_dir, out_dir = output_dir, tmpdir = tmpdir)
-mclapply(vi_list, to_8day, mc.cores = 4, in_dir = daily_vi_dir, out_dir = output_dir, tmpdir = tmpdir)
+mclapply(vi_list, to_8day, mc.cores = 4, mc.preschedule = FALSE, in_dir = daily_vi_dir, out_dir = output_dir, tmpdir = tmpdir)
