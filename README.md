@@ -2,7 +2,7 @@
 
 These codes can achieve the following:
 
-* Calculate Vegetation Indices NDVI, EVI, NIRv, and LSWI and save files in original spatiotemporal resolution (MODIS_HDF_to_TIFF_VIs.R)
+* Calculate Vegetation Indices NDVI, EVI, NIRv, and LSWI and save files in original spatio-temporal resolution (MODIS_HDF_to_TIFF_VIs.R)
 * Reorganize output files by year (Annual_Folders.R)
 * Aggregate temporally to 8-day or monthly time series (Aggregate_Daily_VIs.R)
 * Aggregate spatially to user defined spatial resolution
@@ -14,7 +14,9 @@ This code is originally designed to work with [MCD43C4 v006](https://lpdaac.usgs
 
 ## Workflow
 
-The workflow and codes are listed above in order. It might be necessary to correct the extent on some output files after running MODIS_HDF_to_TIFF_VIs.R. For some reason, the extent on about 10% of the files were not corrected during the processing with this code - which may have had something to do with parallel processing. Use fix_extent.R to identify the files with improper extent and overwrite them in place. To double check it goes smoothly before overwriting, use fix_extent_into_new_dir.R and copy, paste, and overwrite files manually if the new files look good.
+* It is important to try and not exceed the RAM by setting the number of cores too high. Otherwise, it will output temporary files to disc, and some funky stuff can occur. For instance, files might be skipped, have 0 byte size, the extent can be wrong, or the error below can occur. If these occur, then use the missing_files() function and the fix_extent.R code as described below.
+
+The workflow and codes are listed above in order. It might be necessary to correct the extent on some output files after running MODIS_HDF_to_TIFF_VIs.R. When running parallel with too many cores, the extent of the files may be incorrect. Use fix_extent.R to identify the files with improper extent and overwrite them in place. To double check it goes smoothly before overwriting, use fix_extent_into_new_dir.R and copy, paste, and overwrite files manually if the new files look good.
 
 ## Masks
 
@@ -34,8 +36,7 @@ Spatial aggregation can be done to any user defined spatial resolution.
 
 ## Notes
 
-* It is important to try and not exceed the RAM by setting the number of cores too high. Otherwise, it will output temporary files to disc, and some funky stuff can occur. For instance, files might be skipped or have 0 byte size. If this occurs, then use the missing_files() function as described below.
-* There might be 0 byte output files (zero size), or missing files all together due to some sort of issue. The missing_files() function can be used to identify missing and zero byte files and run the calcs again for those files.
+* There might be 0 byte output files (zero size), or missing files all together due to running out of RAM when number of cores is too high. The missing_files() function can be used to identify missing and zero byte files and run the calcs again for those files.
 * The "Error in (function (x)  : attempt to apply non-function" message should be safely ignored. See https://github.com/rspatial/terra/issues/30.
 * Code has been updated to use the terra package, which is a replacement for the raster package. Terra has the ability to extract HDF4 subdatasets directly into memory using sds(), whereas the old workflow was to first write them out to tif using gdal_translate(). Speed is greatly improved.
 * The NC file output is basic and not CF compliant, but is sufficient. See my python code for producing CF-compliant NC files.
@@ -47,11 +48,10 @@ Russell Doughty, PhD - russell.doughty@ou.edu
 
 ## Potential Future Improvements
 
-* Work fix_extent code into MODIS_HDF_to_TIFF_VIs.R to ensure proper extent on output.
+* None.
 
 ## Citations
 
 Walther, S., Voigt, M., Thum, T., Gonsamo, A., Zhang, Y., Köhler, P., Jung, M., Varlagin, A. and Guanter, L., 2016. Satellite chlorophyll fluorescence measurements reveal large‐scale decoupling of photosynthesis and greenness dynamics in boreal evergreen forests. Global change biology, 22(9), pp.2979-2996.
 
 https://github.com/rspatial/terra
-
