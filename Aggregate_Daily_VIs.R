@@ -106,16 +106,16 @@ to_8day    <- function(vi, in_dir, out_dir, tmpdir) {
       
       doy_index <- seq(57, 365, 8)
       
-      for (h in 1:length(doy_index)) {
+      for (h in doy_index) {
         
-        print(paste0("Starting 8-day mean with DOY ", doy_index[h], " for ", year))
+        print(paste0("Starting 8-day mean with DOY ", h, " for ", year))
         
-        file_list_8day <- sub_dir_files[h : (h + 7)]
+        file_list_8day <- sub_dir_files[(h - 56) : (h - 56 + 7)]
         file_list_8day <- file_list_8day[!is.na(file_list_8day)]
-        
+
         vi_stack <- rast(file_list_8day)
         
-        out_name  <- substr(basename(sub_dir_files[h]), 1, 16) # Get first 16 characters of filename
+        out_name  <- substr(basename(sub_dir_files[(h - 56)]), 1, 16) # Get first 16 characters of filename
         out_name  <- paste0(output_dir, "/", out_name, ".", vi, ".8day.tif")
         
         vi_out   <- mean(vi_stack, na.rm = TRUE)
@@ -131,7 +131,7 @@ to_8day    <- function(vi, in_dir, out_dir, tmpdir) {
         
         file_list_8day <- sub_dir_files[h : (h + 7)]
         file_list_8day <- file_list_8day[!is.na(file_list_8day)]
-        
+
         vi_stack <- rast(file_list_8day)
         
         out_name  <- substr(basename(sub_dir_files[h]), 1, 16) # Get first 16 characters of filename
@@ -144,13 +144,13 @@ to_8day    <- function(vi, in_dir, out_dir, tmpdir) {
       }
       
       # Write raster for 8-day mean that is missing 2 files
-      print("Starting 8-day mean with DOY 73 for year 2001, for which MODIS has 2 missing days.")
+      print("Starting 8-day mean with DOY 169 for year 2001, for which MODIS has 2 missing days.")
       
-      file_list_8day <- sub_dir_files[173 : 178]
-      
+      file_list_8day <- sub_dir_files[169 : 174]
+
       vi_stack <- rast(file_list_8day)
       
-      out_name  <- substr(basename(sub_dir_files[h]), 1, 16) # Get first 16 characters of filename
+      out_name  <- substr(basename(sub_dir_files[169]), 1, 16) # Get first 16 characters of filename
       out_name  <- paste0(output_dir, "/", out_name, ".", vi, ".8day.tif")
       
       vi_out   <- mean(vi_stack, na.rm = TRUE)
@@ -165,7 +165,7 @@ to_8day    <- function(vi, in_dir, out_dir, tmpdir) {
         
         file_list_8day <- sub_dir_files[(h - 2) : (h - 2 + 7)]
         file_list_8day <- file_list_8day[!is.na(file_list_8day)]
-        
+
         vi_stack <- rast(file_list_8day)
         
         out_name  <- substr(basename(sub_dir_files[(h - 2)]), 1, 16) # Get first 16 characters of filename
