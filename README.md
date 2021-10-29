@@ -24,7 +24,7 @@ User can define a snow and qc threshold to use when extracting the MCD43C4 data.
 
 A zero tolerance for snow cover was selected per Walther et. al. (2016). We also found that there is very little data in the tropics if the QC filter was set lower than 3 (0 = best and 5 = worst). Thus, we elected to use a QC filter of 3.
 
-## Projection
+## Geographic Coordinate System
 
 Output data is projected into WGS84 and also the extent is set to -180, 180, 90, and 90.
 
