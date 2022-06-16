@@ -10,7 +10,8 @@ terraOptions(memfrac = 0.8) # Fraction of memory to allow terra
 tmpdir             <- "/mnt/c/Rwork"
 hdf_input          <- "/mnt/g/MCD43C4/original"
 vi_dir             <- "/mnt/g/MCD43C4/tif/Daily/0.05"
-vi_list            <- c("EVI", "NDVI", "NIRv", "LSWI")
+vi_list            <- c("NIRv", "RED", "NIR") # updated to include red and NIR bands
+# vi_list            <- c("EVI", "NDVI", "NIRv", "LSWI")
 # vi_list            <- c("NIRv")
 qc_filter          <- c(4, 5) # Flags to exclude (0 = best, 5 = worst for MDC43C4)
 snow_filter        <- 0 # in percent (0 is no snow and excludes all pixels with any snow; 100 is no filter) 
@@ -45,6 +46,16 @@ calc_lswi    <- function(b2, b6) {
   index[index > 1]  <- NA
   index[index < -1] <- NA
   names(index)      <- "LSWI"
+  index             <- round(index, digits = 4) * 10000
+}
+calc_red    <- function(b1) {
+  index             <- b1
+  names(index)      <- "RED"
+  index             <- round(index, digits = 4) * 10000
+}
+calc_nir    <- function(b2) {
+  index             <- b2
+  names(index)      <- "NIR"
   index             <- round(index, digits = 4) * 10000
 }
 mask_all     <- function(index, data_cube, qc_filter, snow_filter, land_mask) {
@@ -104,8 +115,12 @@ save_vis     <- function(filename, vi_dir, vi) {
     index      <- calc_nirv(cube[[1]], cube[[2]])
   } else if (vi == "LSWI") {
     index      <- calc_lswi(cube[[2]], cube[[6]])
+  } else if (vi == "RED") {
+    index      <- calc_red(cube[[1]])
+  } else if (vi == "NIR") {
+    index      <- calc_nir(cube[[2]])
   } else {
-    print(paste0(vi, " is not allowed. Must be EVI, NDVI, NIRv, or LSWI. Exiting."))
+    print(paste0(vi, " is not allowed. Must be EVI, NDVI, NIRv, LSWI, RED, or NIR. Exiting."))
     exit()
   }
   index      <- mask_all(index, cube, qc_filter, snow_filter, land_mask)
@@ -155,6 +170,7 @@ missing_list <- function(hdf_input, vi_dir){
 for (vi in vi_list) {
   if (!dir.exists(paste0(vi_dir, "/", vi))) {
     dir.create(paste0(vi_dir, "/", vi), recursive = TRUE)
+    print(paste0("Created ", vi_dir, "/", vi))
   }
 }
 
