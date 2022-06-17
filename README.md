@@ -2,7 +2,7 @@
 
 These codes can achieve the following:
 
-* Calculate Vegetation Indices NDVI, EVI, NIRv, and LSWI and save files in original spatio-temporal resolution (MODIS_HDF_to_TIFF_VIs.R)
+* Calculate Vegetation Indices NDVI, EVI, NIRv, and LSWI, and also Red and NIR bands, and save files in original spatio-temporal resolution (MODIS_HDF_to_TIFF_VIs.R)
 * Reorganize output files by year (Annual_Folders.R)
 * Aggregate temporally to 8-day or monthly time series (Aggregate_Daily_VIs.R)
 * Aggregate spatially to user defined spatial resolution
