@@ -2,10 +2,10 @@
 library(terra)
 library(parallel)
 
-fine_input    <- "/mnt/g/MCD43C4/tif/Monthly/0.05"
-coarse_output <- "/mnt/g/MCD43C4/tif/Monthly/0.20"
-vi_list       <- c("EVI", "NDVI", "NIRv", "LSWI")
-spatial_res   <- 0.20 # in degrees
+fine_input    <- "/mnt/g/MCD43C4/tif/monthly/0.05"
+coarse_output <- "/mnt/g/MCD43C4/tif/monthly/1deg"
+vi_list       <- c("NIRv", "RED", "NIR")
+spatial_res   <- 1.0 # in degrees
 
 agg_tiff <- function (vi, in_dir, out_dir, s_res) {
   

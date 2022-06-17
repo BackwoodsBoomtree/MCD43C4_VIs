@@ -2,8 +2,8 @@
 library(terra)
 library(parallel)
 
-tif_input    <- "/mnt/g/MCD43C4/tif/Monthly/0.05"
-nc_output    <- "/mnt/g/MCD43C4/nc/Monthly/0.05"
+tif_input    <- "/mnt/g/MCD43C4/tif/monthly/0.05"
+nc_output    <- "/mnt/g/MCD43C4/nc/monthly/0.05"
 time_res     <- "Monthly"
 spatial_res  <- "0.05"
 
