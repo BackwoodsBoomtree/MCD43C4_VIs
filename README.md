@@ -1,5 +1,13 @@
 # MCD43 Vegetation Indices
 
+This code is originally designed to work with [MCD43C4 v006](https://lpdaac.usgs.gov/products/mcd43c4v006/) surface reflectance data, which has a daily temporal resolution. However, it can be adapted and changed slightly to work with other MODIS products. The code currently supports the calculation of EVI, NDVI, NIRv, and LSWI, and can also be used to grid Red and NIR bands.
+
+## Parallel processing
+
+The calculation and gridding routine uses the parallel package in R, but Windows does not support the parallelization. If running locally, then run these codes in WSL 2 Ubuntu after setting up an R environment.
+
+## Workflow
+
 These codes can achieve the following:
 
 * Calculate Vegetation Indices NDVI, EVI, NIRv, and LSWI, and also Red and NIR bands, and save files in original spatio-temporal resolution (MODIS_HDF_to_TIFF_VIs.R)
@@ -8,12 +16,6 @@ These codes can achieve the following:
 * Aggregate spatially to user defined spatial resolution
 * Package the resultant data into NC files for storage and sharing (nc_by_year.R)
 * Added Daily_nc_to_monthly.R and Aggregate_nc_spatial.R for aggregation of the nc files directly
-
-## Description
-
-This code is originally designed to work with [MCD43C4 v006](https://lpdaac.usgs.gov/products/mcd43c4v006/) surface reflectance data, which has a daily temporal resolution. However, it can be adapted and changed slightly to work with other MODIS products. The code currently supports the calculation of EVI, NDVI, NIRv, and LSWI, and can also be used to grid Red and NIR bands.
-
-## Workflow
 
 * It is important to try and not exceed the RAM by setting the number of cores too high. Otherwise, it will output temporary files to disc, and some funky stuff can occur. For instance, files might be skipped, have 0 byte size, the extent can be wrong, or the error below can occur. If these occur, then use the missing_files() function and the fix_extent.R code as described below.
 
