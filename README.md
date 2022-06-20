@@ -2,6 +2,10 @@
 
 This code is originally designed to work with [MCD43C4 v006](https://lpdaac.usgs.gov/products/mcd43c4v006/) surface reflectance data, which has a daily temporal resolution. However, it can be adapted and changed slightly to work with other MODIS products. The code currently supports the calculation of EVI, NDVI, NIRv, and LSWI, and can also be used to grid Red and NIR bands.
 
+## QC and Snow
+
+This code can filter the data using the QC flag and the snow cover % flag. User can define the values to exclude, but default is to remove QC flags 4 and 5 (poor and worst) and to use a snow cover threshold of 0% (per Walther et al. 2016). We found that there is very little data in the tropics if the QC filter was set lower than 3 (0 = best and 5 = worst). Thus, we elected to use a QC filter of <= 3.
+
 ## Parallel processing
 
 The calculation and gridding routine uses the parallel package in R, but Windows does not support the parallelization. If running locally, then run these codes in WSL 2 Ubuntu after setting up an R environment.
@@ -24,8 +28,6 @@ The workflow and codes are listed above in order. It might be necessary to corre
 ## Masks
 
 User can define a snow and qc threshold to use when extracting the MCD43C4 data. The code also employs a land cover mask from MCD12 to ensure only land pixels are included in the output. Fork the code to change filters and techniques when processing other datasets, as needed.
-
-A zero tolerance for snow cover was selected per Walther et. al. (2016). We also found that there is very little data in the tropics if the QC filter was set lower than 3 (0 = best and 5 = worst). Thus, we elected to use a QC filter of 3.
 
 ## Geographic Coordinate System
 
