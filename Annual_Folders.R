@@ -3,7 +3,7 @@ library(filesstrings)
 
 vi_dir    <- "/mnt/g/MCD43C4/tif/Daily/0.05"
 vi_list   <- c("NIRv", "RED", "NIR")
-year_list <- c(2021:2021)
+year_list <- c(2019:2020)
 
 annual_folders <- function (in_dir, vis, years) {
 

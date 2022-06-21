@@ -2,12 +2,15 @@
 library(terra)
 library(parallel)
 
+# Note: probably best not to use more than 2 cores
+
 terraOptions(memfrac = 0.8) # Fraction of memory to allow terra
 
 tmpdir       <- "/mnt/c/Rwork"
 daily_vi_dir <- "/mnt/g/MCD43C4/tif/Daily/0.05"
 output_dir   <- "/mnt/g/MCD43C4/tif/monthly/0.05"
-vi_list      <- c("NIRv", "RED", "NIR")
+# vi_list      <- c("NIRv", "RED", "NIR")
+vi_list      <- c("RED")
 
 tmp_create <- function(tmpdir) {
   
@@ -314,4 +317,4 @@ to_month   <- function (vi, in_dir, out_dir, tmpdir) {
 
 # Dedicate each VI instance to a core
 # mclapply(vi_list, to_month, mc.cores = 4, in_dir = daily_vi_dir, out_dir = output_dir, tmpdir = tmpdir)
-mclapply(vi_list, to_month, mc.cores = 4, mc.preschedule = FALSE, in_dir = daily_vi_dir, out_dir = output_dir, tmpdir = tmpdir)
+mclapply(vi_list, to_month, mc.cores = 2, mc.preschedule = FALSE, in_dir = daily_vi_dir, out_dir = output_dir, tmpdir = tmpdir)

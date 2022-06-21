@@ -40,4 +40,4 @@ agg_tiff <- function (vi, in_dir, out_dir, s_res) {
 }
 
 # Dedicate each VI instance to a core
-mclapply(vi_list, agg_tiff, mc.preschedule = TRUE, mc.cores = 4, in_dir = fine_input, out_dir = coarse_output, s_res = spatial_res)
+mclapply(vi_list, agg_tiff, mc.preschedule = TRUE, mc.cores = length(vi_list), in_dir = fine_input, out_dir = coarse_output, s_res = spatial_res)
