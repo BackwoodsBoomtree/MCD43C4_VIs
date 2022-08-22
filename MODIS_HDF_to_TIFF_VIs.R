@@ -13,7 +13,7 @@ vi_dir             <- "/ourdisk/hpc/geocarb/data_share/MCD43C4/v061/tif/daily/0.
 # qc_filter          <- c(4, 5) # Flags to exclude (0 = best, 5 = worst for MDC43C4)
 qc_filter          <- NA
 snow_filter        <- 0 # in percent (0 is no snow and excludes all pixels with any snow; 100 is no filter) 
-land_mask          <- "/ourdisk/hpc/geocarb/data_share/land_maskLand_Ocean_0.05deg_Clark1866.tif"
+land_mask          <- "/ourdisk/hpc/geocarb/data_share/land_mask/Land_Ocean_0.05deg_Clark1866.tif"
 
 # Create output dirs
 for (vi in vi_list) {
@@ -35,6 +35,7 @@ for (i in 1:length(vi_list)) {
   }
 }
 
+print(pars)
 #### Functions ####
 
 calc_evi     <- function(b1, b2, b3) {
@@ -207,4 +208,4 @@ sjob <- slurm_apply(save_vis, pars, vi_dir = vi_dir, qc_filter = qc_filter,
                     slurm_options = list(partition = "geocarb_plus"))
 
 get_job_status(sjob)[2]
-# cleanup_files(sjob)
+cleanup_files(sjob)
