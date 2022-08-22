@@ -9,7 +9,7 @@ library(rslurm)
 hdf_input          <- "/ourdisk/hpc/geocarb/data_share/MCD43C4/v061/original"
 vi_list            <- c("EVI", "NDVI", "NIRv", "LSWI", "RED", "NIR")
 vi_dir             <- "/ourdisk/hpc/geocarb/data_share/MCD43C4/v061/tif/daily/0.05"
-tmp_dir            <- "/ourdisk/hpc/geocarb/boomtree/tmp"
+# tmp_dir            <- "/ourdisk/hpc/geocarb/boomtree/tmp"
 # qc_filter          <- c(4, 5) # Flags to exclude (0 = best, 5 = worst for MDC43C4)
 qc_filter          <- NA
 snow_filter        <- 0 # in percent (0 is no snow and excludes all pixels with any snow; 100 is no filter) 
@@ -96,29 +96,29 @@ proj_wgs84   <- function(index) {
   
   index <- terra::project(index, "+proj=longlat +datum=WGS84")
 }
-tmp_create   <- function(tmp_dir) {
+# tmp_create   <- function(tmp_dir) {
   
-  p_tmp_dir <- paste0(tmp_dir, "/", as.character(Sys.getpid())) # Process ID
+#   p_tmp_dir <- paste0(tmp_dir, "/", as.character(Sys.getpid())) # Process ID
   
-  if (!dir.exists(p_tmp_dir)) {
-    dir.create(p_tmp_dir, recursive = TRUE)
-  }
+#   if (!dir.exists(p_tmp_dir)) {
+#     dir.create(p_tmp_dir, recursive = TRUE)
+#   }
   
-  terraOptions(tempdir = p_tmp_dir)
-}
-tmp_remove   <- function(tmp_dir) {
+#   terraOptions(tempdir = p_tmp_dir)
+# }
+# tmp_remove   <- function(tmp_dir) {
   
-  p_tmp_dir <- paste0(tmp_dir, "/", as.character(Sys.getpid())) # Process ID
-  unlink(p_tmp_dir, recursive = TRUE)
-}
-save_vis     <- function(filename, vi, vi_dir, tmp_dir, qc_filter, snow_filter, land_mask) {
+#   p_tmp_dir <- paste0(tmp_dir, "/", as.character(Sys.getpid())) # Process ID
+#   unlink(p_tmp_dir, recursive = TRUE)
+# }
+save_vis     <- function(filename, vi, vi_dir, qc_filter, snow_filter, land_mask) {
   
   # start <- Sys.time() # Start clock for timing
   file_out <- substr(basename(filename), 1, nchar(basename(filename)) - 18)
   file_out <- paste0(file_out, ".", vi, ".tif")
   # print(paste0("Working on ", file_out, " starting at ", start))
   
-  tmp_create(tmp_dir)
+  # tmp_create(tmp_dir)
   
   cube <- sds(filename)
   
@@ -148,7 +148,7 @@ save_vis     <- function(filename, vi, vi_dir, tmp_dir, qc_filter, snow_filter, 
   index      <- proj_wgs84(index)
   writeRaster(index, paste0(vi_dir, "/", vi, "/", file_out), overwrite = TRUE, datatype = 'INT4S', NAflag = -9999)
 
-  tmp_remove(tmp_dir)
+  # tmp_remove(tmp_dir)
   
   # print(paste0("Done with ", file_out, ". Time difference in minutes: ", round(difftime(Sys.time(), start, units = "mins"), 2)))
   
@@ -201,10 +201,10 @@ missing_list <- function(hdf_input, vi_dir){
 ######## FOR SLURM ##########
 
 # Run the job
-sjob <- slurm_apply(save_vis, pars, vi_dir = vi_dir, tmp_dir = tmp_dir, qc_filter = qc_filter, 
+sjob <- slurm_apply(save_vis, pars, vi_dir = vi_dir, qc_filter = qc_filter, 
                     snow_filter = snow_filter, land_mask = land_mask,
                     jobname = 'calc_VIs', submit = TRUE, nodes = 40, cpus_per_node = 1,
                     slurm_options = list(partition = "geocarb_plus"))
 
 get_job_status(sjob)[2]
-cleanup_files(sjob)
+# cleanup_files(sjob)
