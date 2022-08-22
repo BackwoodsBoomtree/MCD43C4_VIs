@@ -35,9 +35,7 @@ for (i in 1:length(vi_list)) {
   }
 }
 
-print(pars)
 #### Functions ####
-
 calc_evi     <- function(b1, b2, b3) {
   index            <- 2.5 * (b2 - b1) / (b2 + 6 * b1 - 7.5 * b3 + 1)
   index[index > 1] <- NA
