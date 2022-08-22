@@ -1,22 +1,39 @@
 
 library(terra)
-library(parallel)
-# library(rslurm)
+library(rslurm)
 
-terraOptions(memfrac = 0.8) # Fraction of memory to allow terra
+# terraOptions(memfrac = 0.8) # Fraction of memory to allow terra
 
 #### Input variables ####
 
-tmpdir             <- "/mnt/c/Rwork"
-hdf_input          <- "/mnt/g/MCD43C4/original"
-vi_dir             <- "/mnt/g/MCD43C4/tif/Daily/0.05"
-vi_list            <- c("NIRv", "RED", "NIR") # updated to include red and NIR bands
-# vi_list            <- c("EVI", "NDVI", "NIRv", "LSWI")
-# vi_list            <- c("NIRv")
-qc_filter          <- c(4, 5) # Flags to exclude (0 = best, 5 = worst for MDC43C4)
+hdf_input          <- "/ourdisk/hpc/geocarb/data_share/MCD43C4/v061/original"
+vi_list            <- c("EVI", "NDVI", "NIRv", "LSWI", "RED", "NIR")
+vi_dir             <- "/mnt/g/MCD43C4/tif/daily/0.05"
+tmp_dir            <- "/ourdisk/hpc/geocarb/boomtree/tmp"
+# qc_filter          <- c(4, 5) # Flags to exclude (0 = best, 5 = worst for MDC43C4)
+qc_filter          <- NA
 snow_filter        <- 0 # in percent (0 is no snow and excludes all pixels with any snow; 100 is no filter) 
-land_mask          <- "/mnt/c/Russell/Git/R/MCD43C4_VIs/Land_Ocean_0.05deg_Clark1866.tif"
+land_mask          <- "/ourdisk/hpc/geocarb/data_share/land_maskLand_Ocean_0.05deg_Clark1866.tif"
 
+# Create output dirs
+for (vi in vi_list) {
+  if (!dir.exists(paste0(vi_dir, "/", vi))) {
+    dir.create(paste0(vi_dir, "/", vi), recursive = TRUE)
+    print(paste0("Created ", vi_dir, "/", vi))
+  }
+}
+
+# Create dataframe of function arguments for slurm_apply()
+hdf_list <- list.files(hdf_input, pattern = "*.hdf$", full.names = TRUE, recursive = TRUE)
+
+for (i in 1:length(vi_list)) {
+  vi_long <- data.frame(filename = hdf_list, vi = rep(vi_list[i], length(hdf_list)))
+  if (i == 1) {
+    pars <- vi_long
+  } else {
+    pars <- rbind(pars, vi_long)
+  }
+}
 
 #### Functions ####
 
@@ -48,19 +65,22 @@ calc_lswi    <- function(b2, b6) {
   names(index)      <- "LSWI"
   index             <- round(index, digits = 4) * 10000
 }
-calc_red    <- function(b1) {
+calc_red     <- function(b1) {
   index             <- b1
   names(index)      <- "RED"
   index             <- round(index, digits = 4) * 10000
 }
-calc_nir    <- function(b2) {
+calc_nir     <- function(b2) {
   index             <- b2
   names(index)      <- "NIR"
   index             <- round(index, digits = 4) * 10000
 }
 mask_all     <- function(index, data_cube, qc_filter, snow_filter, land_mask) {
   
-  index <- mask(index, data_cube[[8]], maskvalues = qc_filter)
+  if (!is.na(qc_filter)) {
+    index <- mask(index, data_cube[[8]], maskvalues = qc_filter)
+  }
+  
   index <- mask(index, land_mask, maskvalues = 0)
   
   if (snow_filter == 0) {
@@ -91,12 +111,12 @@ tmp_remove   <- function(tmpdir) {
   p_tmp_dir <- paste0(tmpdir, "/", as.character(Sys.getpid())) # Process ID
   unlink(p_tmp_dir, recursive = TRUE)
 }
-save_vis     <- function(filename, vi_dir, vi) {
+save_vis     <- function(filename, vi, vi_dir, tmp_dir, qc_filter, snow_filter, land_mask) {
   
-  start <- Sys.time() # Start clock for timing
+  # start <- Sys.time() # Start clock for timing
   file_out <- substr(basename(filename), 1, nchar(basename(filename)) - 18)
   file_out <- paste0(file_out, ".", vi, ".tif")
-  print(paste0("Working on ", file_out, " starting at ", start))
+  # print(paste0("Working on ", file_out, " starting at ", start))
   
   tmp_create(tmpdir)
   
@@ -130,7 +150,7 @@ save_vis     <- function(filename, vi_dir, vi) {
 
   tmp_remove(tmpdir)
   
-  print(paste0("Done with ", file_out, ". Time difference in minutes: ", round(difftime(Sys.time(), start, units = "mins"), 2)))
+  # print(paste0("Done with ", file_out, ". Time difference in minutes: ", round(difftime(Sys.time(), start, units = "mins"), 2)))
   
 }
 missing_list <- function(hdf_input, vi_dir){
@@ -167,30 +187,24 @@ missing_list <- function(hdf_input, vi_dir){
 
 ######## FOR Running locally ##########
 
-for (vi in vi_list) {
-  if (!dir.exists(paste0(vi_dir, "/", vi))) {
-    dir.create(paste0(vi_dir, "/", vi), recursive = TRUE)
-    print(paste0("Created ", vi_dir, "/", vi))
-  }
-}
-
-# hdf_list <- missing_list(hdf_input, "/mnt/g/MCD43C4/tif/Daily/0.05/NIRv")
-hdf_list <- list.files(hdf_input, pattern = "*.hdf$", full.names = TRUE, recursive = TRUE)
-
-# Must use mc.preschedule = F
-for (vi in vi_list) {
-  mclapply(hdf_list, save_vis, mc.cores = 6, mc.preschedule = FALSE, vi_dir = vi_dir, vi = vi)
-}
-
-# Delete tempdir
-unlink(tmpdir, recursive = TRUE)
+# # hdf_list <- missing_list(hdf_input, "/mnt/g/MCD43C4/tif/Daily/0.05/NIRv")
+# hdf_list <- list.files(hdf_input, pattern = "*.hdf$", full.names = TRUE, recursive = TRUE)
+# 
+# # Must use mc.preschedule = F
+# for (vi in vi_list) {
+#   mclapply(hdf_list, save_vis, mc.cores = 6, mc.preschedule = FALSE, vi_dir = vi_dir, vi = vi)
+# }
+# 
+# # Delete tempdir
+# unlink(tmpdir, recursive = TRUE)
 
 ######## FOR SLURM ##########
 
-# # Create dataframe of function arguments for slurm_apply()
-# hdf_list      <- list.files(hdf_input, pattern = "*.hdf$", full.names = TRUE, recursive = TRUE)
-# pars          <- data.frame(filename = hdf_list)
-# 
-# # Queue up the job
-# sjob <- slurm_apply(hdf_to_vis, pars, jobname = 'calc_VIs', submit = TRUE, cpus_per_node = 20, nodes = 1,
-#                     tmp_dir = band_output, vi_dir = vi_original_output, bands = band_list, vis = vi_list, mask = land_mask)
+# Run the job
+sjob <- slurm_apply(hdf_to_vis, pars, vi_dir = vi_dir, tmp_dir = tmp_dir, qc_filter = qc_filter, 
+                    snow_filter = snow_filter, land_mask = land_mask,
+                    jobname = 'calc_VIs', submit = TRUE, nodes = 40, cpus_per_node = 1,
+                    slurm_options = list(partition = "geocarb_plus"))
+
+get_job_status(sjob)[2]
+cleanup_files(sjob)
