@@ -208,5 +208,5 @@ sjob <- slurm_apply(save_vis, pars, vi_dir = vi_dir, qc_filter = qc_filter,
                     jobname = 'calc_VIs', submit = TRUE, nodes = 40, cpus_per_node = 1,
                     slurm_options = list(partition = "geocarb_plus"))
 
-get_job_status(sjob)[2]
+# get_job_status(sjob)[2]
 # cleanup_files(sjob)
