@@ -1,7 +1,6 @@
 
 library(terra)
 library(parallel)
-# library(rslurm)
 
 terraOptions(memfrac = 0.8) # Fraction of memory to allow terra
 
@@ -10,10 +9,9 @@ terraOptions(memfrac = 0.8) # Fraction of memory to allow terra
 tmpdir             <- "/mnt/c/Rwork"
 hdf_input          <- "/mnt/g/MCD43C4/original"
 vi_dir             <- "/mnt/g/MCD43C4/tif/Daily/0.05"
-vi_list            <- c("NIRv", "RED", "NIR") # updated to include red and NIR bands
-# vi_list            <- c("EVI", "NDVI", "NIRv", "LSWI")
-# vi_list            <- c("NIRv")
-qc_filter          <- c(4, 5) # Flags to exclude (0 = best, 5 = worst for MDC43C4)
+vi_list            <- c("EVI", "NDVI", "NIRv", "LSWI", "RED", "NIR") # updated to include red and NIR bands
+# qc_filter          <- c(4, 5) # Flags to exclude (0 = best, 5 = worst for MDC43C4)
+qc_filter          <- NA
 snow_filter        <- 0 # in percent (0 is no snow and excludes all pixels with any snow; 100 is no filter) 
 land_mask          <- "/mnt/c/Russell/Git/R/MCD43C4_VIs/Land_Ocean_0.05deg_Clark1866.tif"
 
@@ -26,6 +24,8 @@ calc_evi     <- function(b1, b2, b3) {
   index[index < 0] <- NA
   names(index)     <- "EVI"
   index            <- round(index, digits = 4) * 10000
+  gc()
+  return(index)
 }
 calc_ndvi    <- function(b1, b2) {
   index            <- (b2 - b1) / (b2 + b1)
@@ -33,6 +33,8 @@ calc_ndvi    <- function(b1, b2) {
   index[index < 0] <- NA
   names(index)     <- "NDVI"
   index            <- round(index, digits = 4) * 10000
+  gc()
+  return(index)
 }
 calc_nirv    <- function(b1, b2) {
   index            <- (b2 - b1) / (b2 + b1) * b2
@@ -40,6 +42,8 @@ calc_nirv    <- function(b1, b2) {
   index[index < 0] <- NA
   names(index)     <- "NIRv"
   index            <- round(index, digits = 4) * 10000
+  gc()
+  return(index)
 }
 calc_lswi    <- function(b2, b6) {
   index             <- (b2 - b6) / (b2 + b6)
@@ -47,20 +51,29 @@ calc_lswi    <- function(b2, b6) {
   index[index < -1] <- NA
   names(index)      <- "LSWI"
   index             <- round(index, digits = 4) * 10000
+  gc()
+  return(index)
 }
-calc_red    <- function(b1) {
+calc_red     <- function(b1) {
   index             <- b1
   names(index)      <- "RED"
   index             <- round(index, digits = 4) * 10000
+  gc()
+  return(index)
 }
-calc_nir    <- function(b2) {
+calc_nir     <- function(b2) {
   index             <- b2
   names(index)      <- "NIR"
   index             <- round(index, digits = 4) * 10000
+  gc()
+  return(index)
 }
 mask_all     <- function(index, data_cube, qc_filter, snow_filter, land_mask) {
   
-  index <- mask(index, data_cube[[8]], maskvalues = qc_filter)
+  if (!is.na(qc_filter)) {
+    index <- mask(index, data_cube[[8]], maskvalues = qc_filter)
+  }
+  
   index <- mask(index, land_mask, maskvalues = 0)
   
   if (snow_filter == 0) {
@@ -70,6 +83,7 @@ mask_all     <- function(index, data_cube, qc_filter, snow_filter, land_mask) {
     s_mask[s_mask > snow_filter] <- 101
     index                        <- mask(index, s_mask, maskvalues = 101)
   }
+  gc()
   return(index)
 }
 proj_wgs84   <- function(index) {
@@ -96,6 +110,14 @@ save_vis     <- function(filename, vi_dir, vi) {
   start <- Sys.time() # Start clock for timing
   file_out <- substr(basename(filename), 1, nchar(basename(filename)) - 18)
   file_out <- paste0(file_out, ".", vi, ".tif")
+  
+  out_path_name <- paste0(vi_dir, "/", vi, "/", file_out)
+  
+  if (file.exists(out_path_name)) {
+    stop(paste0("Error: file exists. Quitting. File: ", out_path_name))
+    quit("no")
+  }
+  
   print(paste0("Working on ", file_out, " starting at ", start))
   
   tmp_create(tmpdir)
@@ -126,44 +148,44 @@ save_vis     <- function(filename, vi_dir, vi) {
   index      <- mask_all(index, cube, qc_filter, snow_filter, land_mask)
   ext(index) <- c(-180, 180, -90, 90)
   index      <- proj_wgs84(index)
-  writeRaster(index, paste0(vi_dir, "/", vi, "/", file_out), overwrite = TRUE, datatype = 'INT4S', NAflag = -9999)
+  writeRaster(index, out_path_name, overwrite = TRUE, datatype = 'INT4S', NAflag = -9999)
 
   tmp_remove(tmpdir)
   
   print(paste0("Done with ", file_out, ". Time difference in minutes: ", round(difftime(Sys.time(), start, units = "mins"), 2)))
   
 }
-missing_list <- function(hdf_input, vi_dir){
-  
-  hdf_list <- list.files(hdf_input, pattern = "*.hdf$", full.names = FALSE, recursive = TRUE)
-  
-  tif_list <- list.files(vi_dir, pattern = "*.tif$", full.names = FALSE, recursive = TRUE)
-  
-  missing_files <- c()
-  for (i in hdf_list) {
-    
-    file_out <- substr(basename(i), 1, nchar(basename(i)) - 22)
-    pos <- charmatch(file_out, tif_list)
-    
-    if (is.na(pos)) {
-      missing_files <- c(missing_files, paste0(hdf_input, "/", i))
-    }
-  }
-  
-  tif_list_full <- list.files(vi_dir, pattern = "*.tif$", full.names = TRUE, recursive = TRUE)
-  hdf_list_full <- list.files(hdf_input, pattern = "*.hdf$", full.names = TRUE, recursive = TRUE)
-  
-  for (i in tif_list_full) {
-    if (file.info(i)$size == 0) {
-      
-      file_out <- substr(basename(i), 1, nchar(basename(i)) - 13)
-      pos      <- charmatch(file_out, hdf_list)
-      
-      missing_files <- c(missing_files, hdf_list_full[pos])
-    }
-  }
-  return(missing_files)
-}
+# missing_list <- function(hdf_input, vi_dir){
+#   
+#   hdf_list <- list.files(hdf_input, pattern = "*.hdf$", full.names = FALSE, recursive = TRUE)
+#   
+#   tif_list <- list.files(vi_dir, pattern = "*.tif$", full.names = FALSE, recursive = TRUE)
+#   
+#   missing_files <- c()
+#   for (i in hdf_list) {
+#     
+#     file_out <- substr(basename(i), 1, nchar(basename(i)) - 22)
+#     pos <- charmatch(file_out, tif_list)
+#     
+#     if (is.na(pos)) {
+#       missing_files <- c(missing_files, paste0(hdf_input, "/", i))
+#     }
+#   }
+#   
+#   tif_list_full <- list.files(vi_dir, pattern = "*.tif$", full.names = TRUE, recursive = TRUE)
+#   hdf_list_full <- list.files(hdf_input, pattern = "*.hdf$", full.names = TRUE, recursive = TRUE)
+#   
+#   for (i in tif_list_full) {
+#     if (file.info(i)$size == 0) {
+#       
+#       file_out <- substr(basename(i), 1, nchar(basename(i)) - 13)
+#       pos      <- charmatch(file_out, hdf_list)
+#       
+#       missing_files <- c(missing_files, hdf_list_full[pos])
+#     }
+#   }
+#   return(missing_files)
+# }
 
 ######## FOR Running locally ##########
 
@@ -185,12 +207,3 @@ for (vi in vi_list) {
 # Delete tempdir
 unlink(tmpdir, recursive = TRUE)
 
-######## FOR SLURM ##########
-
-# # Create dataframe of function arguments for slurm_apply()
-# hdf_list      <- list.files(hdf_input, pattern = "*.hdf$", full.names = TRUE, recursive = TRUE)
-# pars          <- data.frame(filename = hdf_list)
-# 
-# # Queue up the job
-# sjob <- slurm_apply(hdf_to_vis, pars, jobname = 'calc_VIs', submit = TRUE, cpus_per_node = 20, nodes = 1,
-#                     tmp_dir = band_output, vi_dir = vi_original_output, bands = band_list, vis = vi_list, mask = land_mask)
