@@ -218,7 +218,7 @@ save_vis     <- function(filename, vi, vi_dir, qc_filter, snow_filter, land_mask
 # Run the job
 sjob <- slurm_apply(save_vis, pars, vi_dir = vi_dir, qc_filter = qc_filter, 
                     snow_filter = snow_filter, land_mask = land_mask,
-                    jobname = 'calc_VIs', submit = TRUE, nodes = 1, cpus_per_node = 20,
+                    jobname = 'calc_VIs', submit = TRUE, nodes = 1, cpus_per_node = 10,
                     preschedule_cores = FALSE,
                     slurm_options = list(partition = "normal", time = "6:00:00"))
 
