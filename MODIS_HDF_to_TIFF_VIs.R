@@ -8,7 +8,7 @@ library(rslurm)
 
 hdf_input          <- "/ourdisk/hpc/geocarb/data_share/MCD43C4/v061/original"
 vi_list            <- c("EVI", "NDVI", "NIRv", "LSWI", "RED", "NIR")
-vi_dir             <- "/mnt/g/MCD43C4/tif/daily/0.05"
+vi_dir             <- "/ourdisk/hpc/geocarb/data_share/MCD43C4/tif/daily/0.05"
 tmp_dir            <- "/ourdisk/hpc/geocarb/boomtree/tmp"
 # qc_filter          <- c(4, 5) # Flags to exclude (0 = best, 5 = worst for MDC43C4)
 qc_filter          <- NA
