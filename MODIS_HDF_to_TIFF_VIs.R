@@ -1,19 +1,29 @@
-
 library(terra)
 library(parallel)
+
+## NOTE: if there are missing output files due to memory issues, just run the script again.
+##       it checks if the file exists by default
 
 terraOptions(memfrac = 0.8) # Fraction of memory to allow terra
 
 #### Input variables ####
 
 tmpdir             <- "/mnt/c/Rwork"
-hdf_input          <- "/mnt/g/MCD43C4/original"
-vi_dir             <- "/mnt/g/MCD43C4/tif/Daily/0.05"
+hdf_input          <- "/mnt/g/MCD43C4/v061/original"
+vi_dir             <- "/mnt/g/MCD43C4/v061/tif/daily/0.05"
 vi_list            <- c("EVI", "NDVI", "NIRv", "LSWI", "RED", "NIR") # updated to include red and NIR bands
 # qc_filter          <- c(4, 5) # Flags to exclude (0 = best, 5 = worst for MDC43C4)
 qc_filter          <- NA
 snow_filter        <- 0 # in percent (0 is no snow and excludes all pixels with any snow; 100 is no filter) 
 land_mask          <- "/mnt/c/Russell/Git/R/MCD43C4_VIs/Land_Ocean_0.05deg_Clark1866.tif"
+
+## Create output dirs
+for (vi in vi_list) {
+  if (!dir.exists(paste0(vi_dir, "/", vi))) {
+    dir.create(paste0(vi_dir, "/", vi), recursive = TRUE)
+    print(paste0("Created ", vi_dir, "/", vi))
+  }
+}
 
 
 #### Functions ####
@@ -88,7 +98,9 @@ mask_all     <- function(index, data_cube, qc_filter, snow_filter, land_mask) {
 }
 proj_wgs84   <- function(index) {
   
-  index <- terra::project(index, "+proj=longlat +datum=WGS84")
+  index <- project(index, "+proj=longlat +datum=WGS84")
+  gc()
+  return(index)
 }
 tmp_create   <- function(tmpdir) {
   
@@ -151,6 +163,7 @@ save_vis     <- function(filename, vi_dir, vi) {
   writeRaster(index, out_path_name, overwrite = TRUE, datatype = 'INT4S', NAflag = -9999)
 
   tmp_remove(tmpdir)
+  rm(index)
   
   print(paste0("Done with ", file_out, ". Time difference in minutes: ", round(difftime(Sys.time(), start, units = "mins"), 2)))
   
@@ -188,13 +201,6 @@ save_vis     <- function(filename, vi_dir, vi) {
 # }
 
 ######## FOR Running locally ##########
-
-for (vi in vi_list) {
-  if (!dir.exists(paste0(vi_dir, "/", vi))) {
-    dir.create(paste0(vi_dir, "/", vi), recursive = TRUE)
-    print(paste0("Created ", vi_dir, "/", vi))
-  }
-}
 
 # hdf_list <- missing_list(hdf_input, "/mnt/g/MCD43C4/tif/Daily/0.05/NIRv")
 hdf_list <- list.files(hdf_input, pattern = "*.hdf$", full.names = TRUE, recursive = TRUE)
