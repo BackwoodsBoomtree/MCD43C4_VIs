@@ -36,82 +36,85 @@ for (i in 1:length(vi_list)) {
 }
 
 #### Functions ####
-calc_evi     <- function(b1, b2, b3) {
+save_vis     <- function(filename, vi, vi_dir, qc_filter, snow_filter, land_mask) {
+  
+  # FUNCTIONS ##
+  calc_evi     <- function(b1, b2, b3) {
   index            <- 2.5 * (b2 - b1) / (b2 + 6 * b1 - 7.5 * b3 + 1)
   index[index > 1] <- NA
   index[index < 0] <- NA
   names(index)     <- "EVI"
   index            <- round(index, digits = 4) * 10000
-}
-calc_ndvi    <- function(b1, b2) {
-  index            <- (b2 - b1) / (b2 + b1)
-  index[index > 1] <- NA
-  index[index < 0] <- NA
-  names(index)     <- "NDVI"
-  index            <- round(index, digits = 4) * 10000
-}
-calc_nirv    <- function(b1, b2) {
-  index            <- (b2 - b1) / (b2 + b1) * b2
-  index[index > 1] <- NA
-  index[index < 0] <- NA
-  names(index)     <- "NIRv"
-  index            <- round(index, digits = 4) * 10000
-}
-calc_lswi    <- function(b2, b6) {
-  index             <- (b2 - b6) / (b2 + b6)
-  index[index > 1]  <- NA
-  index[index < -1] <- NA
-  names(index)      <- "LSWI"
-  index             <- round(index, digits = 4) * 10000
-}
-calc_red     <- function(b1) {
-  index             <- b1
-  names(index)      <- "RED"
-  index             <- round(index, digits = 4) * 10000
-}
-calc_nir     <- function(b2) {
-  index             <- b2
-  names(index)      <- "NIR"
-  index             <- round(index, digits = 4) * 10000
-}
-mask_all     <- function(index, data_cube, qc_filter, snow_filter, land_mask) {
-  
-  if (!is.na(qc_filter)) {
-    index <- mask(index, data_cube[[8]], maskvalues = qc_filter)
   }
-  
-  index <- mask(index, land_mask, maskvalues = 0)
-  
-  if (snow_filter == 0) {
-    index <- mask(index, data_cube[[11]], maskvalues = 0, inverse = TRUE)
-  } else {
-    s_mask                       <- data_cube[[11]]
-    s_mask[s_mask > snow_filter] <- 101
-    index                        <- mask(index, s_mask, maskvalues = 101)
+    calc_ndvi    <- function(b1, b2) {
+    index            <- (b2 - b1) / (b2 + b1)
+    index[index > 1] <- NA
+    index[index < 0] <- NA
+    names(index)     <- "NDVI"
+    index            <- round(index, digits = 4) * 10000
   }
-  return(index)
-}
-proj_wgs84   <- function(index) {
-  
-  index <- terra::project(index, "+proj=longlat +datum=WGS84")
-}
-# tmp_create   <- function(tmp_dir) {
-  
-#   p_tmp_dir <- paste0(tmp_dir, "/", as.character(Sys.getpid())) # Process ID
-  
-#   if (!dir.exists(p_tmp_dir)) {
-#     dir.create(p_tmp_dir, recursive = TRUE)
-#   }
-  
-#   terraOptions(tempdir = p_tmp_dir)
-# }
-# tmp_remove   <- function(tmp_dir) {
-  
-#   p_tmp_dir <- paste0(tmp_dir, "/", as.character(Sys.getpid())) # Process ID
-#   unlink(p_tmp_dir, recursive = TRUE)
-# }
-save_vis     <- function(filename, vi, vi_dir, qc_filter, snow_filter, land_mask) {
-  
+  calc_nirv    <- function(b1, b2) {
+    index            <- (b2 - b1) / (b2 + b1) * b2
+    index[index > 1] <- NA
+    index[index < 0] <- NA
+    names(index)     <- "NIRv"
+    index            <- round(index, digits = 4) * 10000
+  }
+  calc_lswi    <- function(b2, b6) {
+    index             <- (b2 - b6) / (b2 + b6)
+    index[index > 1]  <- NA
+    index[index < -1] <- NA
+    names(index)      <- "LSWI"
+    index             <- round(index, digits = 4) * 10000
+  }
+  calc_red     <- function(b1) {
+    index             <- b1
+    names(index)      <- "RED"
+    index             <- round(index, digits = 4) * 10000
+  }
+  calc_nir     <- function(b2) {
+    index             <- b2
+    names(index)      <- "NIR"
+    index             <- round(index, digits = 4) * 10000
+  }
+  mask_all     <- function(index, data_cube, qc_filter, snow_filter, land_mask) {
+    
+    if (!is.na(qc_filter)) {
+      index <- mask(index, data_cube[[8]], maskvalues = qc_filter)
+    }
+    
+    index <- mask(index, land_mask, maskvalues = 0)
+    
+    if (snow_filter == 0) {
+      index <- mask(index, data_cube[[11]], maskvalues = 0, inverse = TRUE)
+    } else {
+      s_mask                       <- data_cube[[11]]
+      s_mask[s_mask > snow_filter] <- 101
+      index                        <- mask(index, s_mask, maskvalues = 101)
+    }
+    return(index)
+  }
+  proj_wgs84   <- function(index) {
+    
+    index <- terra::project(index, "+proj=longlat +datum=WGS84")
+  }
+  # tmp_create   <- function(tmp_dir) {
+    
+  #   p_tmp_dir <- paste0(tmp_dir, "/", as.character(Sys.getpid())) # Process ID
+    
+  #   if (!dir.exists(p_tmp_dir)) {
+  #     dir.create(p_tmp_dir, recursive = TRUE)
+  #   }
+    
+  #   terraOptions(tempdir = p_tmp_dir)
+  # }
+  # tmp_remove   <- function(tmp_dir) {
+    
+  #   p_tmp_dir <- paste0(tmp_dir, "/", as.character(Sys.getpid())) # Process ID
+  #   unlink(p_tmp_dir, recursive = TRUE)
+  # }
+
+
   # start <- Sys.time() # Start clock for timing
   file_out <- substr(basename(filename), 1, nchar(basename(filename)) - 18)
   file_out <- paste0(file_out, ".", vi, ".tif")
@@ -152,37 +155,37 @@ save_vis     <- function(filename, vi, vi_dir, qc_filter, snow_filter, land_mask
   # print(paste0("Done with ", file_out, ". Time difference in minutes: ", round(difftime(Sys.time(), start, units = "mins"), 2)))
   
 }
-missing_list <- function(hdf_input, vi_dir){
+# missing_list <- function(hdf_input, vi_dir){
   
-  hdf_list <- list.files(hdf_input, pattern = "*.hdf$", full.names = FALSE, recursive = TRUE)
+#   hdf_list <- list.files(hdf_input, pattern = "*.hdf$", full.names = FALSE, recursive = TRUE)
   
-  tif_list <- list.files(vi_dir, pattern = "*.tif$", full.names = FALSE, recursive = TRUE)
+#   tif_list <- list.files(vi_dir, pattern = "*.tif$", full.names = FALSE, recursive = TRUE)
   
-  missing_files <- c()
-  for (i in hdf_list) {
+#   missing_files <- c()
+#   for (i in hdf_list) {
     
-    file_out <- substr(basename(i), 1, nchar(basename(i)) - 22)
-    pos <- charmatch(file_out, tif_list)
+#     file_out <- substr(basename(i), 1, nchar(basename(i)) - 22)
+#     pos <- charmatch(file_out, tif_list)
     
-    if (is.na(pos)) {
-      missing_files <- c(missing_files, paste0(hdf_input, "/", i))
-    }
-  }
+#     if (is.na(pos)) {
+#       missing_files <- c(missing_files, paste0(hdf_input, "/", i))
+#     }
+#   }
   
-  tif_list_full <- list.files(vi_dir, pattern = "*.tif$", full.names = TRUE, recursive = TRUE)
-  hdf_list_full <- list.files(hdf_input, pattern = "*.hdf$", full.names = TRUE, recursive = TRUE)
+#   tif_list_full <- list.files(vi_dir, pattern = "*.tif$", full.names = TRUE, recursive = TRUE)
+#   hdf_list_full <- list.files(hdf_input, pattern = "*.hdf$", full.names = TRUE, recursive = TRUE)
   
-  for (i in tif_list_full) {
-    if (file.info(i)$size == 0) {
+#   for (i in tif_list_full) {
+#     if (file.info(i)$size == 0) {
       
-      file_out <- substr(basename(i), 1, nchar(basename(i)) - 13)
-      pos      <- charmatch(file_out, hdf_list)
+#       file_out <- substr(basename(i), 1, nchar(basename(i)) - 13)
+#       pos      <- charmatch(file_out, hdf_list)
       
-      missing_files <- c(missing_files, hdf_list_full[pos])
-    }
-  }
-  return(missing_files)
-}
+#       missing_files <- c(missing_files, hdf_list_full[pos])
+#     }
+#   }
+#   return(missing_files)
+# }
 
 ######## FOR Running locally ##########
 
@@ -203,9 +206,7 @@ missing_list <- function(hdf_input, vi_dir){
 sjob <- slurm_apply(save_vis, pars, vi_dir = vi_dir, qc_filter = qc_filter, 
                     snow_filter = snow_filter, land_mask = land_mask,
                     jobname = 'calc_VIs', submit = TRUE, nodes = 40, cpus_per_node = 1,
-                    slurm_options = list(partition = "geocarb_plus"),
-                    global_objects = list("calc_evi", "calc_lswi", "calc_ndvi," "calc_nir", "calc_nirv", "calc_red",
-                    "mask_all", "proj_wgs84"))
+                    slurm_options = list(partition = "geocarb_plus"))
 
 get_job_status(sjob)[2]
 # cleanup_files(sjob)
