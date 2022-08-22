@@ -1,8 +1,7 @@
-
 library(terra)
 library(rslurm)
 
-# terraOptions(memfrac = 0.8) # Fraction of memory to allow terra
+terraOptions(memfrac = 0.8) # Fraction of memory to allow terra
 
 #### Input variables ####
 
@@ -25,7 +24,6 @@ for (vi in vi_list) {
 
 # Create dataframe of function arguments for slurm_apply()
 hdf_list <- list.files(hdf_input, pattern = "*.hdf$", full.names = TRUE, recursive = TRUE)
-
 for (i in 1:length(vi_list)) {
   vi_long <- data.frame(filename = hdf_list, vi = rep(vi_list[i], length(hdf_list)))
   if (i == 1) {
@@ -40,18 +38,22 @@ save_vis     <- function(filename, vi, vi_dir, qc_filter, snow_filter, land_mask
   
   # FUNCTIONS ##
   calc_evi     <- function(b1, b2, b3) {
-  index            <- 2.5 * (b2 - b1) / (b2 + 6 * b1 - 7.5 * b3 + 1)
-  index[index > 1] <- NA
-  index[index < 0] <- NA
-  names(index)     <- "EVI"
-  index            <- round(index, digits = 4) * 10000
+    index            <- 2.5 * (b2 - b1) / (b2 + 6 * b1 - 7.5 * b3 + 1)
+    index[index > 1] <- NA
+    index[index < 0] <- NA
+    names(index)     <- "EVI"
+    index            <- round(index, digits = 4) * 10000
+    gc()
+    return(index)
   }
-    calc_ndvi    <- function(b1, b2) {
+  calc_ndvi    <- function(b1, b2) {
     index            <- (b2 - b1) / (b2 + b1)
     index[index > 1] <- NA
     index[index < 0] <- NA
     names(index)     <- "NDVI"
     index            <- round(index, digits = 4) * 10000
+    gc()
+    return(index)
   }
   calc_nirv    <- function(b1, b2) {
     index            <- (b2 - b1) / (b2 + b1) * b2
@@ -59,6 +61,8 @@ save_vis     <- function(filename, vi, vi_dir, qc_filter, snow_filter, land_mask
     index[index < 0] <- NA
     names(index)     <- "NIRv"
     index            <- round(index, digits = 4) * 10000
+    gc()
+    return(index)
   }
   calc_lswi    <- function(b2, b6) {
     index             <- (b2 - b6) / (b2 + b6)
@@ -66,16 +70,22 @@ save_vis     <- function(filename, vi, vi_dir, qc_filter, snow_filter, land_mask
     index[index < -1] <- NA
     names(index)      <- "LSWI"
     index             <- round(index, digits = 4) * 10000
+    gc()
+    return(index)
   }
   calc_red     <- function(b1) {
     index             <- b1
     names(index)      <- "RED"
     index             <- round(index, digits = 4) * 10000
+    gc()
+    return(index)
   }
   calc_nir     <- function(b2) {
     index             <- b2
     names(index)      <- "NIR"
     index             <- round(index, digits = 4) * 10000
+    gc()
+    return(index)
   }
   mask_all     <- function(index, data_cube, qc_filter, snow_filter, land_mask) {
     
@@ -92,11 +102,8 @@ save_vis     <- function(filename, vi, vi_dir, qc_filter, snow_filter, land_mask
       s_mask[s_mask > snow_filter] <- 101
       index                        <- mask(index, s_mask, maskvalues = 101)
     }
+    gc()
     return(index)
-  }
-  proj_wgs84   <- function(index) {
-    
-    index <- terra::project(index, "+proj=longlat +datum=WGS84")
   }
   # tmp_create   <- function(tmp_dir) {
     
@@ -116,9 +123,14 @@ save_vis     <- function(filename, vi, vi_dir, qc_filter, snow_filter, land_mask
 
 
   # start <- Sys.time() # Start clock for timing
-  file_out <- substr(basename(filename), 1, nchar(basename(filename)) - 18)
-  file_out <- paste0(file_out, ".", vi, ".tif")
-  # print(paste0("Working on ", file_out, " starting at ", start))
+  file_out      <- substr(basename(filename), 1, nchar(basename(filename)) - 18)
+  file_out      <- paste0(file_out, ".", vi, ".tif")
+  out_path_name <- paste0(vi_dir, "/", vi, "/", file_out)
+
+  if (file.exists(out_path_name)) {
+    stop(paste0("Error: file exists. Quitting. File: ", out_path_name))
+    quit("no")
+  }
   
   # tmp_create(tmp_dir)
   
@@ -142,13 +154,14 @@ save_vis     <- function(filename, vi, vi_dir, qc_filter, snow_filter, land_mask
   } else if (vi == "NIR") {
     index      <- calc_nir(cube[[2]])
   } else {
-    print(paste0(vi, " is not allowed. Must be EVI, NDVI, NIRv, LSWI, RED, or NIR. Exiting."))
-    exit()
+    stop(paste0(vi, " is not allowed. Must be EVI, NDVI, NIRv, LSWI, RED, or NIR. Quiting."))
+    quit("no")
   }
   index      <- mask_all(index, cube, qc_filter, snow_filter, land_mask)
   ext(index) <- c(-180, 180, -90, 90)
-  index      <- proj_wgs84(index)
-  writeRaster(index, paste0(vi_dir, "/", vi, "/", file_out), overwrite = TRUE, datatype = 'INT4S', NAflag = -9999)
+  index <- project(index, "+proj=longlat +datum=WGS84")
+  gc()
+  writeRaster(index, out_path_name, overwrite = TRUE, datatype = 'INT4S', NAflag = -9999)
 
   # tmp_remove(tmp_dir)
   
@@ -205,7 +218,7 @@ save_vis     <- function(filename, vi, vi_dir, qc_filter, snow_filter, land_mask
 # Run the job
 sjob <- slurm_apply(save_vis, pars, vi_dir = vi_dir, qc_filter = qc_filter, 
                     snow_filter = snow_filter, land_mask = land_mask,
-                    jobname = 'calc_VIs', submit = TRUE, nodes = 40, cpus_per_node = 1,
+                    jobname = 'calc_VIs', submit = TRUE, nodes = 10, cpus_per_node = 1,
                     slurm_options = list(partition = "geocarb_plus"))
 
 # get_job_status(sjob)[2]
