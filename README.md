@@ -1,5 +1,7 @@
 # MCD43 Vegetation Indices
 
+### NOTE: The main branch was started for running on the server with slurm. The local branch is for running locally.
+
 This code is originally designed to work with [MCD43C4 v006](https://lpdaac.usgs.gov/products/mcd43c4v006/) surface reflectance data, which has a daily temporal resolution. However, it can be adapted and changed slightly to work with other MODIS products. The code currently supports the calculation of EVI, NDVI, NIRv, and LSWI, and can also be used to grid Red and NIR bands.
 
 ## QC and Snow
