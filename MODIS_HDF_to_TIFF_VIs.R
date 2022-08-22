@@ -204,8 +204,8 @@ sjob <- slurm_apply(save_vis, pars, vi_dir = vi_dir, qc_filter = qc_filter,
                     snow_filter = snow_filter, land_mask = land_mask,
                     jobname = 'calc_VIs', submit = TRUE, nodes = 40, cpus_per_node = 1,
                     slurm_options = list(partition = "geocarb_plus"),
-                    global_objects = list(calc_evi, calc_lswi, calc_ndvi, calc_nir, calc_nirv, calc_red,
-                    mask_all, proj_wgs84))
+                    global_objects = c("calc_evi", "calc_lswi", "calc_ndvi," "calc_nir", "calc_nirv", "calc_red",
+                    "mask_all", "proj_wgs84"))
 
 get_job_status(sjob)[2]
 # cleanup_files(sjob)
