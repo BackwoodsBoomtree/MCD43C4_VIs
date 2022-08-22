@@ -1,14 +1,11 @@
 library(terra)
 library(rslurm)
 
-# terraOptions(memfrac = 0.8) # Fraction of memory to allow terra
-
 #### Input variables ####
 
 hdf_input          <- "/ourdisk/hpc/geocarb/data_share/MCD43C4/v061/original"
 vi_list            <- c("EVI", "NDVI", "NIRv", "LSWI", "RED", "NIR")
 vi_dir             <- "/ourdisk/hpc/geocarb/data_share/MCD43C4/v061/tif/daily/0.05"
-# tmp_dir            <- "/ourdisk/hpc/geocarb/boomtree/tmp"
 # qc_filter          <- c(4, 5) # Flags to exclude (0 = best, 5 = worst for MDC43C4)
 qc_filter          <- NA
 snow_filter        <- 0 # in percent (0 is no snow and excludes all pixels with any snow; 100 is no filter) 
@@ -105,24 +102,7 @@ save_vis     <- function(filename, vi, vi_dir, qc_filter, snow_filter, land_mask
     gc()
     return(index)
   }
-  # tmp_create   <- function(tmp_dir) {
-    
-  #   p_tmp_dir <- paste0(tmp_dir, "/", as.character(Sys.getpid())) # Process ID
-    
-  #   if (!dir.exists(p_tmp_dir)) {
-  #     dir.create(p_tmp_dir, recursive = TRUE)
-  #   }
-    
-  #   terraOptions(tempdir = p_tmp_dir)
-  # }
-  # tmp_remove   <- function(tmp_dir) {
-    
-  #   p_tmp_dir <- paste0(tmp_dir, "/", as.character(Sys.getpid())) # Process ID
-  #   unlink(p_tmp_dir, recursive = TRUE)
-  # }
-
-
-  # start <- Sys.time() # Start clock for timing
+  
   file_out      <- substr(basename(filename), 1, nchar(basename(filename)) - 18)
   file_out      <- paste0(file_out, ".", vi, ".tif")
   out_path_name <- paste0(vi_dir, "/", vi, "/", file_out)
@@ -131,8 +111,6 @@ save_vis     <- function(filename, vi, vi_dir, qc_filter, snow_filter, land_mask
     stop(paste0("Error: file exists. Quitting. File: ", out_path_name))
     quit("no")
   }
-  
-  # tmp_create(tmp_dir)
   
   cube <- sds(filename)
   
@@ -162,56 +140,8 @@ save_vis     <- function(filename, vi, vi_dir, qc_filter, snow_filter, land_mask
   index <- project(index, "+proj=longlat +datum=WGS84")
   gc()
   writeRaster(index, out_path_name, overwrite = TRUE, datatype = 'INT4S', NAflag = -9999)
-
-  # tmp_remove(tmp_dir)
-  
-  # print(paste0("Done with ", file_out, ". Time difference in minutes: ", round(difftime(Sys.time(), start, units = "mins"), 2)))
   
 }
-# missing_list <- function(hdf_input, vi_dir){
-  
-#   hdf_list <- list.files(hdf_input, pattern = "*.hdf$", full.names = FALSE, recursive = TRUE)
-  
-#   tif_list <- list.files(vi_dir, pattern = "*.tif$", full.names = FALSE, recursive = TRUE)
-  
-#   missing_files <- c()
-#   for (i in hdf_list) {
-    
-#     file_out <- substr(basename(i), 1, nchar(basename(i)) - 22)
-#     pos <- charmatch(file_out, tif_list)
-    
-#     if (is.na(pos)) {
-#       missing_files <- c(missing_files, paste0(hdf_input, "/", i))
-#     }
-#   }
-  
-#   tif_list_full <- list.files(vi_dir, pattern = "*.tif$", full.names = TRUE, recursive = TRUE)
-#   hdf_list_full <- list.files(hdf_input, pattern = "*.hdf$", full.names = TRUE, recursive = TRUE)
-  
-#   for (i in tif_list_full) {
-#     if (file.info(i)$size == 0) {
-      
-#       file_out <- substr(basename(i), 1, nchar(basename(i)) - 13)
-#       pos      <- charmatch(file_out, hdf_list)
-      
-#       missing_files <- c(missing_files, hdf_list_full[pos])
-#     }
-#   }
-#   return(missing_files)
-# }
-
-######## FOR Running locally ##########
-
-# # hdf_list <- missing_list(hdf_input, "/mnt/g/MCD43C4/tif/Daily/0.05/NIRv")
-# hdf_list <- list.files(hdf_input, pattern = "*.hdf$", full.names = TRUE, recursive = TRUE)
-# 
-# # Must use mc.preschedule = F
-# for (vi in vi_list) {
-#   mclapply(hdf_list, save_vis, mc.cores = 6, mc.preschedule = FALSE, vi_dir = vi_dir, vi = vi)
-# }
-# 
-# # Delete tempdir
-# unlink(tmp_dir, recursive = TRUE)
 
 ######## FOR SLURM ##########
 
