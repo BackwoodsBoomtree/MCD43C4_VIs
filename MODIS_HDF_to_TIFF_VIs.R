@@ -201,7 +201,7 @@ missing_list <- function(hdf_input, vi_dir){
 ######## FOR SLURM ##########
 
 # Run the job
-sjob <- slurm_apply(hdf_to_vis, pars, vi_dir = vi_dir, tmp_dir = tmp_dir, qc_filter = qc_filter, 
+sjob <- slurm_apply(save_vis, pars, vi_dir = vi_dir, tmp_dir = tmp_dir, qc_filter = qc_filter, 
                     snow_filter = snow_filter, land_mask = land_mask,
                     jobname = 'calc_VIs', submit = TRUE, nodes = 40, cpus_per_node = 1,
                     slurm_options = list(partition = "geocarb_plus"))
