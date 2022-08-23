@@ -21,7 +21,9 @@ land_mask          <- "/mnt/c/Russell/Git/R/MCD43C4_VIs/Land_Ocean_0.05deg_Clark
 for (vi in vi_list) {
   if (!dir.exists(paste0(vi_dir, "/", vi))) {
     dir.create(paste0(vi_dir, "/", vi), recursive = TRUE)
-    print(paste0("Created ", vi_dir, "/", vi))
+    message(paste0("Created ", vi_dir, "/", vi))
+  } else {
+    message(paste0("Directory exists for ", paste0(vi_dir, "/", vi)))
   }
 }
 
@@ -96,12 +98,6 @@ mask_all     <- function(index, data_cube, qc_filter, snow_filter, land_mask) {
   gc()
   return(index)
 }
-proj_wgs84   <- function(index) {
-  
-  index <- project(index, "+proj=longlat +datum=WGS84")
-  gc()
-  return(index)
-}
 tmp_create   <- function(tmpdir) {
   
   p_tmp_dir <- paste0(tmpdir, "/", as.character(Sys.getpid())) # Process ID
@@ -126,11 +122,12 @@ save_vis     <- function(filename, vi_dir, vi) {
   out_path_name <- paste0(vi_dir, "/", vi, "/", file_out)
   
   if (file.exists(out_path_name)) {
-    stop(paste0("Error: file exists. Quitting. File: ", out_path_name))
+    message(paste0("Quitting. File exists: ", out_path_name))
+    return(invisible(NULL))
     quit("no")
   }
   
-  print(paste0("Working on ", file_out, " starting at ", start))
+  message(paste0("Working on ", out_path_name, " starting at ", start))
   
   tmp_create(tmpdir)
   
@@ -154,55 +151,28 @@ save_vis     <- function(filename, vi_dir, vi) {
   } else if (vi == "NIR") {
     index      <- calc_nir(cube[[2]])
   } else {
-    print(paste0(vi, " is not allowed. Must be EVI, NDVI, NIRv, LSWI, RED, or NIR. Exiting."))
-    exit()
+    message(paste0(vi, " is not allowed. Must be EVI, NDVI, NIRv, LSWI, RED, or NIR. Exiting."))
+    quit("no")
   }
+  
+  # Mask snow and qc, fix extent, project
   index      <- mask_all(index, cube, qc_filter, snow_filter, land_mask)
   ext(index) <- c(-180, 180, -90, 90)
-  index      <- proj_wgs84(index)
+  index      <- project(index, "+proj=longlat +datum=WGS84")
+  
+  # Save
   writeRaster(index, out_path_name, overwrite = TRUE, datatype = 'INT4S', NAflag = -9999)
 
+  # Clean up
   tmp_remove(tmpdir)
   rm(index)
   
-  print(paste0("Done with ", file_out, ". Time difference in minutes: ", round(difftime(Sys.time(), start, units = "mins"), 2)))
+  message(paste0("Done with ", file_out, ". Time difference in minutes: ", round(difftime(Sys.time(), start, units = "mins"), 2)))
   
 }
-# missing_list <- function(hdf_input, vi_dir){
-#   
-#   hdf_list <- list.files(hdf_input, pattern = "*.hdf$", full.names = FALSE, recursive = TRUE)
-#   
-#   tif_list <- list.files(vi_dir, pattern = "*.tif$", full.names = FALSE, recursive = TRUE)
-#   
-#   missing_files <- c()
-#   for (i in hdf_list) {
-#     
-#     file_out <- substr(basename(i), 1, nchar(basename(i)) - 22)
-#     pos <- charmatch(file_out, tif_list)
-#     
-#     if (is.na(pos)) {
-#       missing_files <- c(missing_files, paste0(hdf_input, "/", i))
-#     }
-#   }
-#   
-#   tif_list_full <- list.files(vi_dir, pattern = "*.tif$", full.names = TRUE, recursive = TRUE)
-#   hdf_list_full <- list.files(hdf_input, pattern = "*.hdf$", full.names = TRUE, recursive = TRUE)
-#   
-#   for (i in tif_list_full) {
-#     if (file.info(i)$size == 0) {
-#       
-#       file_out <- substr(basename(i), 1, nchar(basename(i)) - 13)
-#       pos      <- charmatch(file_out, hdf_list)
-#       
-#       missing_files <- c(missing_files, hdf_list_full[pos])
-#     }
-#   }
-#   return(missing_files)
-# }
 
 ######## FOR Running locally ##########
 
-# hdf_list <- missing_list(hdf_input, "/mnt/g/MCD43C4/tif/Daily/0.05/NIRv")
 hdf_list <- list.files(hdf_input, pattern = "*.hdf$", full.names = TRUE, recursive = TRUE)
 
 # Must use mc.preschedule = F

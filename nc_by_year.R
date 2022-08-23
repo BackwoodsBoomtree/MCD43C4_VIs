@@ -1,12 +1,13 @@
-
 library(terra)
 library(parallel)
+library(ncdf4)
 
-tif_input    <- "/mnt/g/MCD43C4/tif/monthly/0.05"
-nc_output    <- "/mnt/g/MCD43C4/nc_annual/monthly/0.05"
-vi_list      <- c("NIRv", "RED", "NIR")
-time_res     <- "Monthly"
+tif_input    <- "/mnt/g/MCD43C4/v061/tif/daily/0.05"
+nc_output    <- "/mnt/g/MCD43C4/v061/nc/daily/0.05"
+vi_list      <- c("EVI", "NDVI", "NIRv", "LSWI", "RED", "NIR")
+time_res     <- "daily"
 spatial_res  <- "0.05"
+data_version <- "MCD43C4 v061"
 
 # Creates nc file for each year
 nc_by_vi_year <- function (in_dir, out_dir, vis, t_res, s_res) {
@@ -22,10 +23,10 @@ nc_by_vi_year <- function (in_dir, out_dir, vis, t_res, s_res) {
       
       if (!dir.exists(output_dir)) {
         dir.create(output_dir, recursive = TRUE)
+        message(paste0("Output dir created ", output_dir))
       }
   
-      print(paste0("Placing files from ", year_dirs[j], " into .nc file."))
-      print(paste0("Output dir is: ", output_dir))
+      message(paste0("Placing files from ", year_dirs[j], " into .nc file."))
       
       file_list <- list.files(year_dirs[j], full.names = TRUE, pattern = "*.tif$")
   
@@ -34,9 +35,10 @@ nc_by_vi_year <- function (in_dir, out_dir, vis, t_res, s_res) {
       out_name <- substr(basename(file_list[1]), 1, 13)
       out_name <- paste(out_name, vis[i], t_res, s_res, "nc", sep = ".")
       out_name <- paste0(output_dir, "/", out_name)
-      l_name   <- paste0(t_res, " MCD43C4 v006 ", vis[i])
-      writeCDF(vi_stack, filename = out_name, varname = vis[i], longname = l_name, overwrite = TRUE, compression = 4, missval = -9999)
-      print(paste0("Saved file to: ", out_name))
+      l_name   <- paste0(t_res, " ", data_version, " ", vis[i])
+      writeCDF(vi_stack, filename = out_name, varname = vis[i], longname = l_name, 
+               overwrite = TRUE, compression = 4, missval = -9999)
+      message(paste0("Saved file to: ", out_name))
     }
   }
 }
