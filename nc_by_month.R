@@ -72,8 +72,6 @@ nc_by_vi_month <- function (in_dir, out_dir, vis, t_res, s_res) {
                  overwrite = TRUE, compression = 4, missval = -9999)
         message(paste0("Saved file to: ", out_name))
       }
-
-
     }
   }
 }
