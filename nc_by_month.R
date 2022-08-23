@@ -1,7 +1,6 @@
 library(terra)
 library(parallel)
 library(ncdf4)
-library(lubridate)
 
 tif_input    <- "/mnt/g/MCD43C4/v061/tif/daily/0.05"
 nc_output    <- "/mnt/g/MCD43C4/v061/nc/daily/0.05"
@@ -9,6 +8,22 @@ vi_list      <- c("EVI", "NDVI", "NIRv", "LSWI", "RED", "NIR")
 time_res     <- "daily"
 spatial_res  <- "0.05"
 data_version <- "MCD43C4 v061"
+
+leap <- function (year) {
+  if((year %% 4) == 0) {
+    if((year %% 100) == 0) {
+      if((year %% 400) == 0) {
+        return(TRUE)
+      } else {
+        return(FALSE)
+      }
+    } else {
+      return(TRUE)
+    }
+  } else {
+    return(FALSE)
+  }
+}
 
 # Creates nc file for each year
 nc_by_vi_month <- function (in_dir, out_dir, vis, t_res, s_res) {
@@ -29,7 +44,7 @@ nc_by_vi_month <- function (in_dir, out_dir, vis, t_res, s_res) {
       
       file_list_year <- list.files(year_dirs[j], full.names = TRUE, pattern = "*.tif$")
       
-      if (leap_year(basename(year_dirs[j])) == TRUE) {
+      if (leap(as.numeric(basename(year_dirs[j]))) == TRUE) {
         month_list_df <- file_list_year[1:31]
         month_list_df <- cbind(month_list_df, c(file_list_year[32:60], NA, NA))
         month_list_df <- cbind(month_list_df, file_list_year[61:91])
