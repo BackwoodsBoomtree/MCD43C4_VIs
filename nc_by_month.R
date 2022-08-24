@@ -73,19 +73,28 @@ nc_by_vi_month <- function (in_dir, out_dir, vis, t_res, s_res) {
       }
       
       for (m in 1:12) {
-        message(paste0("Placing files from ", year_dirs[j], " month ", m, " into .nc file."))
         
         # Remove NA from file list
         files    <- month_list_df[,m][!is.na(month_list_df[,m])]
-        vi_stack <- rast(files)
         
+        # Output name
         out_name <- substr(basename(files[1]), 1, 13)
         out_name <- paste(out_name, sprintf("%02d", m), vis[i], t_res, s_res, "nc", sep = ".")
         out_name <- paste0(output_dir, "/", out_name)
-        l_name   <- paste0(t_res, " ", data_version, " ", vis[i])
-        writeCDF(vi_stack, filename = out_name, varname = vis[i], longname = l_name, 
-                 overwrite = TRUE, compression = 4, missval = -9999)
-        message(paste0("Saved file to: ", out_name))
+        
+        # Check if file exists already
+        if (file.exists(out_name)) {
+          message(paste0("Quitting. File exists: ", out_name))
+        } else {
+          
+          message(paste0("Placing files from ", year_dirs[j], " month ", m, " into .nc file."))
+          vi_stack <- rast(files)
+          
+          l_name   <- paste0(t_res, " ", data_version, " ", vis[i])
+          writeCDF(vi_stack, filename = out_name, varname = vis[i], longname = l_name, 
+                   overwrite = TRUE, compression = 4, missval = -9999)
+          message(paste0("Saved file to: ", out_name))
+        }
       }
     }
   }
