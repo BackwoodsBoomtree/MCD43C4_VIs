@@ -126,5 +126,5 @@ nc_by_vi_month <- function (vi, in_dir, out_dir, t_res, s_res, d_ver) {
 }
 
 # Must use mc.preschedule = F
-mclapply(vi_list, nc_by_vi_month, mc.cores = 1, mc.preschedule = FALSE, in_dir = tif_input, out_dir = nc_output, 
+mclapply(vi_list, nc_by_vi_month, mc.cores = 3, mc.preschedule = FALSE, in_dir = tif_input, out_dir = nc_output, 
          t_res = time_res, s_res = spatial_res, d_ver = data_version)
