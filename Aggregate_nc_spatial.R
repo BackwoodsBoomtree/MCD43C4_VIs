@@ -1,12 +1,13 @@
 library(terra)
 
-in_dir       <- "G:/MCD43C4/monthly/0.05"
-vi_list      <- c("EVI", "NDVI", "NIRv", "LSWI")
-out_dir      <- "G:/MCD43C4/nc/monthly/1deg"
+in_dir       <- "G:/MCD43C4/v061/nc/monthly/0.05"
+# vi_list      <- c("EVI", "NDVI", "NIRv", "LSWI")
+vi_list      <- c("LSWI")
+out_dir      <- "G:/MCD43C4/v061/nc/monthly/1.0"
 in_res       <- 0.05
 out_res      <- 1.0 # in degrees
 in_res_name  <- "0.05.nc"
-out_res_name <- "1deg.nc"
+out_res_name <- "1.0.nc"
 
 for(vi in vi_list) {
   

@@ -1,8 +1,9 @@
 library(terra)
 
-in_dir  <- "G:/MCD43C4/nc/daily/0.05"
-vi_list <- c("EVI", "NDVI", "NIRv", "LSWI")
-out_dir <- "G:/MCD43C4/nc/monthly/0.05"
+in_dir  <- "G:/MCD43C4/v061/nc/daily/0.05"
+# vi_list <- c("EVI", "NDVI", "NIRv", "LSWI")
+vi_list <- c("LSWI")
+out_dir <- "G:/MCD43C4/v061/nc/monthly/0.05"
 
 for(vi in vi_list) {
   
@@ -20,7 +21,7 @@ for(vi in vi_list) {
     monthly <- mean(daily, na.rm = TRUE)
     
     out_name <- basename(file_list[i])
-    out_name <- gsub("Daily", "Monthly", out_name)
+    out_name <- gsub("daily", "monthly", out_name)
     out_name <- paste0(out_dir, "/", vi, "/", out_name)
     
     writeCDF(monthly, filename = out_name, varname = vi, unit = "", compression = 4, missval = -9999, overwrite = TRUE)
